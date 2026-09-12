@@ -1,7 +1,7 @@
 import httpx
 import pytest
 
-from app.core.database import init_database
+from app.core.database import init_test_database
 from app.main import app
 
 
@@ -18,7 +18,7 @@ def job_payload() -> dict[str, object]:
 
 @pytest.mark.asyncio
 async def test_job_api_workflow_and_validation() -> None:
-    await init_database()
+    await init_test_database()
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         health = await client.get("/health")
