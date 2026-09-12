@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.core.database import init_database
+from app.core.database import close_database
 from app.modules.candidate.schemas import CandidateProfile
 from app.modules.candidate.service import load_candidate_profile
 from app.modules.jobs.router import router as jobs_router
@@ -10,9 +10,11 @@ from app.modules.jobs.router import router as jobs_router
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    await init_database()
     load_candidate_profile()
-    yield
+    try:
+        yield
+    finally:
+        await close_database()
 
 
 app = FastAPI(
