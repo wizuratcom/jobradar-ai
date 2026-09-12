@@ -1,0 +1,1 @@
+"""JobRadar AI application package."""

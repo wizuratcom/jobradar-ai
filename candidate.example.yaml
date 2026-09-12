@@ -1,0 +1,27 @@
+name: Example Candidate
+
+desired_titles:
+  - Python Backend Developer
+  - Backend Engineer
+  - AI Backend Engineer
+
+core_skills:
+  - Python
+  - FastAPI
+  - PostgreSQL
+  - SQLAlchemy
+  - REST API
+
+secondary_skills:
+  - Docker
+  - AWS
+  - LLM
+  - OpenAI
+  - SQS
+
+preferred_remote: true
+
+preferred_locations:
+  - Serbia
+  - Remote
+  - Europe
