@@ -1,31 +1,55 @@
 # JobRadar AI
 
-JobRadar AI is a portfolio-grade Python backend project. This first milestone
-is a fully local core: it accepts job postings through a REST API, saves them
-to SQLite, loads a public example candidate profile from YAML, and produces an
-explainable deterministic match score. No API keys, Docker, external services,
-or cloud accounts are needed.
+JobRadar AI is a portfolio-grade Python backend project. It accepts job
+postings through a REST API, saves them to PostgreSQL, loads a public example
+candidate profile from YAML, and produces an explainable deterministic match
+score. No cloud account or API key is required.
 
 ## Roadmap
 
 - [x] FastAPI application
-- [x] SQLite persistence
+- [x] PostgreSQL persistence
 - [x] Async SQLAlchemy
 - [x] Candidate profile configuration
 - [x] Deterministic job matching
 - [x] Automated tests
-- [ ] PostgreSQL
-- [ ] Alembic migrations
-- [ ] Docker Compose
+- [x] Alembic migrations
+- [x] Docker Compose
 - [ ] LLM-assisted job analysis
 - [ ] Telegram notifications
 - [ ] Automated job-source adapters
 - [ ] Prometheus metrics
 - [ ] Production deployment
 
-## Running locally
+## Running with Docker
 
-Start from a clean clone with Python 3.12 installed:
+The supported development runtime is Docker Compose with PostgreSQL. From a
+clean clone:
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+The API container applies `alembic upgrade head` before starting Uvicorn. If a
+migration fails, the API container exits and exposes the failure in its logs.
+
+Swagger UI is available at `http://localhost:8000/docs`. The health check is
+`http://localhost:8000/health`.
+
+PostgreSQL data is stored in the named `postgres_data` Docker volume, so it
+survives normal container restarts and `docker compose down`. To permanently
+reset all local data, stop the stack and delete that volume:
+
+```bash
+docker compose down -v
+```
+
+## Running without Docker
+
+This is useful when you already have a local PostgreSQL server. Create `.env`
+from the example, change its host from `db` to `localhost` if necessary, and
+then run:
 
 ```bash
 python3.12 -m venv .venv
@@ -38,9 +62,32 @@ uvicorn app.main:app --reload
 Swagger UI is available at `http://127.0.0.1:8000/docs`. The health check is
 available at `http://127.0.0.1:8000/health`.
 
-The default SQLite file is `data/jobradar.db`. It and its tables are created
-automatically when the application starts. You can use a different local file
-by changing `DATABASE_URL` in `.env`.
+Before launching the app, apply the database schema:
+
+```bash
+alembic upgrade head
+```
+
+`DATABASE_URL` supplies the async PostgreSQL connection, for example:
+`postgresql+asyncpg://jobradar:jobradar@db:5432/jobradar` in Docker Compose.
+
+## Alembic migrations
+
+Alembic is the only production schema-management mechanism. Useful commands:
+
+```bash
+alembic upgrade head
+alembic downgrade -1
+alembic revision --autogenerate -m "description"
+```
+
+For the Docker stack, invoke Alembic inside the API container if needed:
+
+```bash
+docker compose exec api alembic upgrade head
+docker compose exec api alembic downgrade -1
+docker compose exec api alembic revision --autogenerate -m "description"
+```
 
 ## API overview
 
@@ -103,10 +150,13 @@ pytest
 ruff check .
 ```
 
+CI runs these checks against a PostgreSQL GitHub Actions service container on
+every push and pull request to `main`.
+
 ## Project map
 
 - `app/main.py` wires the FastAPI app and routes.
-- `app/core/database.py` owns async SQLite setup and sessions.
+- `app/core/database.py` owns the async PostgreSQL engine and session lifecycle.
 - `app/modules/jobs/` validates, normalizes, persists, and serves vacancies.
 - `app/modules/candidate/service.py` reads the YAML candidate profile.
 - `app/modules/matching/service.py` contains all scoring rules.
