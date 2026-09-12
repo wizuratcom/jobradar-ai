@@ -16,6 +16,8 @@ jobs:
           POSTGRES_DB: jobradar_test
           POSTGRES_USER: jobradar
           POSTGRES_PASSWORD: jobradar
+        ports:
+          - 5432:5432
         options: >-
           --health-cmd "pg_isready -U jobradar -d jobradar_test"
           --health-interval 10s
