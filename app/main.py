@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.core.database import close_database
+from app.modules.analysis.router import router as analysis_router
 from app.modules.candidate.schemas import CandidateProfile
 from app.modules.candidate.service import load_candidate_profile
 from app.modules.jobs.router import router as jobs_router
@@ -24,6 +25,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.include_router(jobs_router)
+app.include_router(analysis_router)
 
 
 @app.get("/health", tags=["system"])
