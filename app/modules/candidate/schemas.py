@@ -10,3 +10,7 @@ class CandidateProfile(BaseModel):
     secondary_skills: list[str] = Field(default_factory=list)
     preferred_remote: bool = True
     preferred_locations: list[str] = Field(default_factory=list)
+
+
+class CandidateProfileRead(CandidateProfile):
+    id: int
