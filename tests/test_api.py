@@ -1,8 +1,10 @@
 import httpx
 import pytest
+from sqlalchemy import select
 
-from app.core.database import init_test_database
+from app.core.database import SessionLocal, init_test_database
 from app.main import app
+from app.modules.jobs.models import JobSourceRecord
 
 
 def job_payload() -> dict[str, object]:
@@ -49,6 +51,16 @@ async def test_job_api_workflow_and_validation() -> None:
         created = await client.post("/api/v1/jobs", json=job_payload(), headers=headers)
         assert created.status_code == 201
         job_id = created.json()["id"]
+        assert created.json()["work_mode"] == "remote"
+
+        async with SessionLocal() as session:
+            source = await session.scalar(
+                select(JobSourceRecord).where(JobSourceRecord.job_id == job_id)
+            )
+            assert source is not None
+            assert source.source_name == "manual"
+            assert source.normalization_version == "1"
+            assert source.raw_payload["title"] == "Senior Python Backend Developer"
 
         retrieved = await client.get(f"/api/v1/jobs/{job_id}", headers=headers)
         assert retrieved.status_code == 200

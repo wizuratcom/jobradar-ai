@@ -1,7 +1,12 @@
 from app.modules.candidate.schemas import CandidateProfile
 from app.modules.jobs.models import JobPosting
-from app.modules.jobs.service import normalize_text
+from app.modules.jobs.normalization import clean_text
 from app.modules.matching.schemas import MatchResult, ScoreBreakdown
+
+
+def normalize_text(value: str) -> str:
+    return clean_text(value).casefold()
+
 
 TITLE_WEIGHT = 25
 CORE_SKILLS_WEIGHT = 40
@@ -31,10 +36,10 @@ def _title_score(title: str, desired_titles: list[str]) -> int:
 
 
 def _location_score(job: JobPosting, candidate: CandidateProfile) -> int:
-    if job.remote and candidate.preferred_remote:
+    if job.work_mode == "remote" and candidate.preferred_remote:
         return LOCATION_WEIGHT
-    is_preferred_location = job.location and any(
-        normalize_text(location) == normalize_text(job.location)
+    is_preferred_location = job.location_text and any(
+        normalize_text(location) == normalize_text(job.location_text or "")
         for location in candidate.preferred_locations
     )
     if is_preferred_location:

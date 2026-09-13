@@ -22,10 +22,12 @@ def build_analysis_messages(
         "company": job.company,
         "title": job.title,
         "description": job.description,
-        "location": job.location,
-        "remote": job.remote,
+        "application_url": job.application_url,
+        "location_text": job.location_text,
+        "work_mode": job.work_mode,
         "employment_type": job.employment_type,
         "required_skills": job.required_skills,
+        "preferred_skills": job.preferred_skills,
     }
     user_content = "\n\n".join(
         [

@@ -16,6 +16,7 @@ score. No cloud account or API key is required.
 - [x] Alembic migrations
 - [x] Docker Compose
 - [x] LLM-assisted job analysis
+- [x] Canonical vacancy normalization and provenance
 - [ ] Telegram notifications
 - [ ] Automated job-source adapters
 - [ ] Prometheus metrics
@@ -152,6 +153,22 @@ Manage the authenticated profile with `PUT /api/v1/me/profile`. The
 `candidate.example.yaml` file is now documentation/example input only; runtime
 matching reads the database-backed profile.
 
+## Vacancy normalization
+
+Manual vacancy creation uses the same deterministic pipeline planned for future
+sources: `ManualJobCreate -> RawJobData -> JobNormalizer -> JobPosting +
+JobSourceRecord`. `JobPosting` is canonical; `JobSourceRecord` stores the
+manual/source provenance. `application_url` is the source-independent employer
+application destination. `JobSourceRecord.source_url` is the page where a
+source discovered the vacancy; future sources may create several provenance
+records for one canonical job. Legacy request fields `url`, `location`,
+`remote`, and `currency` are accepted only as compatibility aliases and are
+converted to `application_url`, `location_text`, `work_mode`, and
+`salary_currency` respectively. Supported work modes are `remote`, `hybrid`,
+`onsite`, and `unknown`. Ambiguous salary text is preserved as raw data with a
+warning rather than guessed. `candidate.example.yaml` is demo/reference data,
+not the runtime profile.
+
 ## LLM-assisted analysis
 
 Deterministic matching remains the source of truth for the score and its
@@ -220,9 +237,9 @@ requirement absent from the profile is reported as a gap instead.
 
 ## Candidate profile
 
-`candidate.example.yaml` is deliberately fictional. Copy it to a separate
-local YAML file, adjust it, and set `CANDIDATE_PROFILE_PATH` in `.env` if you
-want to test another profile. Do not commit private data.
+`candidate.example.yaml` is deliberately fictional reference data. Runtime
+matching uses the authenticated user's PostgreSQL-backed profile managed via
+`PUT /api/v1/me/profile`. Do not commit private data.
 
 ## Quality checks
 
