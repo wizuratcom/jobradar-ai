@@ -15,7 +15,7 @@ score. No cloud account or API key is required.
 - [x] Automated tests
 - [x] Alembic migrations
 - [x] Docker Compose
-- [ ] LLM-assisted job analysis
+- [x] LLM-assisted job analysis
 - [ ] Telegram notifications
 - [ ] Automated job-source adapters
 - [ ] Prometheus metrics
@@ -137,6 +137,72 @@ The constants live at the top of `app/modules/matching/service.py`.
 Recommendations are `strong_apply` (80–100), `apply` (60–79), `maybe`
 (40–59), and `skip` (0–39).
 
+## LLM-assisted analysis
+
+Deterministic matching remains the source of truth for the score and its
+recommendation. Optional LLM analysis adds a structured application brief:
+strengths, gaps, factual CV emphasis, a recruiter message, and interview
+preparation topics. It never replaces or recalculates the deterministic score.
+
+```mermaid
+flowchart TD
+    J[Job posting] --> M[Deterministic matcher]
+    C[Candidate profile] --> M
+    M --> S[Authoritative score]
+    J --> A[Optional LLM analysis]
+    C --> A
+    S --> A
+    A --> B[Persisted application brief]
+```
+
+LLM support is disabled by default, so no API key is needed to start the
+project. When disabled, all existing endpoints continue working and
+`POST /api/v1/jobs/{job_id}/analyze` returns a clear `503` response without
+changing job or matching data.
+
+### Fake provider for local development
+
+Set these values in `.env`, then rebuild the API container:
+
+```dotenv
+LLM_ENABLED=true
+LLM_PROVIDER=fake
+```
+
+```bash
+docker compose up --build -d
+```
+
+Create a job in Swagger, run `/match` if you want to inspect the authoritative
+score, then call `POST /api/v1/jobs/{job_id}/analyze`. The fake provider uses
+no network or credentials and persists a structured history record. Retrieve
+history through `GET /api/v1/analyses` or `GET /api/v1/analyses/{analysis_id}`.
+
+### Future OpenAI-compatible provider
+
+Use a provider only when you have an appropriate endpoint and secret outside
+version control:
+
+```dotenv
+LLM_ENABLED=true
+LLM_PROVIDER=openai_compatible
+LLM_BASE_URL=https://provider.example/v1
+LLM_API_KEY=replace-with-your-secret
+LLM_MODEL=provider-model-name
+LLM_TIMEOUT_SECONDS=30
+LLM_MAX_RETRIES=2
+```
+
+The adapter retries only timeouts, network failures, HTTP `429`, and HTTP
+`5xx`, with bounded exponential backoff. Other HTTP failures, malformed JSON,
+empty content, or invalid structured output return a controlled API error and
+are never persisted. API keys and raw provider responses are neither logged
+nor stored.
+
+The prompt explicitly forbids fabricated candidate experience, employers,
+years, achievements, metrics, certifications, or unlisted technologies. A job
+requirement absent from the profile is reported as a gap instead.
+
 ## Candidate profile
 
 `candidate.example.yaml` is deliberately fictional. Copy it to a separate
@@ -160,3 +226,5 @@ every push and pull request to `main`.
 - `app/modules/jobs/` validates, normalizes, persists, and serves vacancies.
 - `app/modules/candidate/service.py` reads the YAML candidate profile.
 - `app/modules/matching/service.py` contains all scoring rules.
+- `app/integrations/llm/` isolates optional provider adapters and prompt rules.
+- `app/modules/analysis/` validates and persists successful analysis history.
