@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_engine_from_config
 from alembic import context
 from app.core.config import get_settings
 from app.core.database import Base
+from app.modules.analysis.models import JobAnalysis  # noqa: F401
 from app.modules.jobs.models import JobPosting  # noqa: F401
 
 config = context.config
