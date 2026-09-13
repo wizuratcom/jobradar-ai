@@ -26,11 +26,11 @@ class JobService:
     def __init__(self, repository: JobRepository) -> None:
         self.repository = repository
 
-    async def create_job(self, job: JobCreate) -> JobPosting:
-        return await self.repository.create(normalize_job(job))
+    async def create_job(self, job: JobCreate, user_id: int) -> JobPosting:
+        return await self.repository.create_for_user(normalize_job(job), user_id)
 
-    async def get_job(self, job_id: int) -> JobPosting:
-        job = await self.repository.get_by_id(job_id)
+    async def get_job(self, job_id: int, user_id: int) -> JobPosting:
+        job = await self.repository.get_for_user(job_id, user_id)
         if job is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
         return job

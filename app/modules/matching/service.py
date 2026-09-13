@@ -26,9 +26,7 @@ def _proportional_score(matches: list[str], available: list[str], weight: int) -
 
 def _title_score(title: str, desired_titles: list[str]) -> int:
     normalized_title = normalize_text(title)
-    has_relevant_title = any(
-        normalize_text(item) in normalized_title for item in desired_titles
-    )
+    has_relevant_title = any(normalize_text(item) in normalized_title for item in desired_titles)
     return TITLE_WEIGHT if has_relevant_title else 0
 
 
