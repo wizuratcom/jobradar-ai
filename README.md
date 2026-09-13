@@ -137,6 +137,21 @@ The constants live at the top of `app/modules/matching/service.py`.
 Recommendations are `strong_apply` (80–100), `apply` (60–79), `maybe`
 (40–59), and `skip` (0–39).
 
+## Authentication
+
+Create an account with `POST /api/v1/auth/register`, then obtain a bearer token
+through `POST /api/v1/auth/login`. In Swagger (`/docs`), click **Authorize**
+and enter `Bearer <access_token>`. Private jobs, profiles, matches, and
+analyses are scoped to the token's user.
+
+```json
+{"email":"candidate@example.com","password":"password123"}
+```
+
+Manage the authenticated profile with `PUT /api/v1/me/profile`. The
+`candidate.example.yaml` file is now documentation/example input only; runtime
+matching reads the database-backed profile.
+
 ## LLM-assisted analysis
 
 Deterministic matching remains the source of truth for the score and its
