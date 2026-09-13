@@ -17,6 +17,12 @@ class JobAnalysis(Base):
         ForeignKey("job_postings.id", ondelete="CASCADE"),
         index=True,
     )
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=True
+    )
+    job_match_id: Mapped[int | None] = mapped_column(
+        ForeignKey("job_matches.id", ondelete="SET NULL"), index=True, nullable=True
+    )
     provider: Mapped[str] = mapped_column(String(50))
     model: Mapped[str | None] = mapped_column(String(200), nullable=True)
     recommendation: Mapped[str] = mapped_column(String(20))

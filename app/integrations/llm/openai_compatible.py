@@ -90,9 +90,7 @@ class OpenAICompatibleLLMProvider:
                 if response.status_code < 400:
                     return response
                 if response.status_code != 429 and response.status_code < 500:
-                    raise LLMUnavailableError(
-                        f"LLM provider returned HTTP {response.status_code}."
-                    )
+                    raise LLMUnavailableError(f"LLM provider returned HTTP {response.status_code}.")
                 error = f"HTTP {response.status_code}"
             except (httpx.TimeoutException, httpx.RequestError) as exc:
                 error = type(exc).__name__

@@ -23,6 +23,7 @@ class JobAnalysisRead(BaseModel):
 
     id: int
     job_id: int
+    job_match_id: int | None
     provider: str
     model: str | None
     recommendation: Recommendation
