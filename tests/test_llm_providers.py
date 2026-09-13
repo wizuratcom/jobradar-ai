@@ -33,7 +33,7 @@ def job() -> JobPosting:
         company="Acme",
         title="Python Backend Developer",
         description="Build APIs",
-        remote=True,
+        work_mode="remote",
         required_skills=["Python", "FastAPI", "PostgreSQL", "Docker", "Redis"],
     )
 

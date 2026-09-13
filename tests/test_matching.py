@@ -19,7 +19,7 @@ def test_title_and_skill_scoring() -> None:
         company="Acme",
         title="Python Backend Developer",
         description="Build APIs",
-        remote=True,
+        work_mode="remote",
         required_skills=["Python", "FastAPI", "Docker", "Redis"],
     )
     result = calculate_match(job, candidate())
@@ -37,8 +37,8 @@ def test_unrelated_title_and_location_do_not_score() -> None:
         company="Acme",
         title="Frontend Developer",
         description="Build interfaces",
-        location="France",
-        remote=False,
+        location_text="France",
+        work_mode="onsite",
         required_skills=[],
     )
     result = calculate_match(job, candidate())
