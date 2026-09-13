@@ -9,6 +9,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     database_url: str
     candidate_profile_path: Path = Path("candidate.example.yaml")
+    jwt_secret: SecretStr = SecretStr("change-me-for-local-development-32b")
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expire_minutes: int = Field(default=60, gt=0, le=1440)
     llm_enabled: bool = False
     llm_provider: Literal["disabled", "fake", "openai_compatible"] = "disabled"
     llm_base_url: str | None = None

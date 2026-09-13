@@ -17,8 +17,7 @@ class FakeLLMProvider:
         deterministic_match: MatchResult,
     ) -> JobAnalysisResult:
         strengths = (
-            deterministic_match.matched_core_skills
-            + deterministic_match.matched_secondary_skills
+            deterministic_match.matched_core_skills + deterministic_match.matched_secondary_skills
         )
         gaps = deterministic_match.missing_skills
         candidate_skills = candidate.core_skills + candidate.secondary_skills
@@ -49,8 +48,6 @@ class FakeLLMProvider:
                 f"{recruiter_skills}; I would welcome a conversation about the role's requirements."
             ),
             interview_topics=deterministic_match.matched_core_skills or candidate.core_skills[:3],
-            questions_to_prepare=[
-                f"How does this role evaluate {skill}?" for skill in gaps
-            ]
+            questions_to_prepare=[f"How does this role evaluate {skill}?" for skill in gaps]
             or ["Which project outcomes matter most during the first months in this role?"],
         )

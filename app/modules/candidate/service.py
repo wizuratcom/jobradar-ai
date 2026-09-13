@@ -1,14 +1,30 @@
-from functools import lru_cache
+from fastapi import HTTPException, status
 
-import yaml
-
-from app.core.config import get_settings
-from app.modules.candidate.schemas import CandidateProfile
+from app.modules.candidate.models import CandidateProfileRecord
+from app.modules.candidate.schemas import CandidateProfile, CandidateProfileRead
 
 
-@lru_cache
-def load_candidate_profile() -> CandidateProfile:
-    path = get_settings().candidate_profile_path
-    with path.open(encoding="utf-8") as profile_file:
-        contents = yaml.safe_load(profile_file)
-    return CandidateProfile.model_validate(contents)
+def to_profile(record: CandidateProfileRecord) -> CandidateProfile:
+    return CandidateProfile.model_validate(
+        {
+            "name": record.name,
+            "desired_titles": record.desired_titles,
+            "core_skills": record.core_skills,
+            "secondary_skills": record.secondary_skills,
+            "preferred_remote": record.preferred_remote,
+            "preferred_locations": record.preferred_locations,
+        }
+    )
+
+
+def to_profile_read(record: CandidateProfileRecord) -> CandidateProfileRead:
+    return CandidateProfileRead(id=record.id, **to_profile(record).model_dump())
+
+
+def require_profile(record: CandidateProfileRecord | None) -> CandidateProfileRecord:
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Create a candidate profile before matching jobs.",
+        )
+    return record
