@@ -24,6 +24,7 @@ SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 async def init_test_database() -> None:
     """Create schema for isolated tests only; production schema is Alembic-managed."""
     async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.drop_all)
         await connection.run_sync(Base.metadata.create_all)
 
 
