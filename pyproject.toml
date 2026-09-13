@@ -8,11 +8,14 @@ version = "0.1.0"
 description = "Local deterministic job matching backend"
 requires-python = ">=3.12"
 dependencies = [
+    "argon2-cffi>=23.1",
     "aiosqlite>=0.20",
     "alembic>=1.14",
     "asyncpg>=0.30",
+    "email-validator>=2.2",
     "fastapi>=0.115",
     "httpx>=0.27",
+    "PyJWT>=2.10",
     "pydantic-settings>=2.6",
     "PyYAML>=6.0",
     "SQLAlchemy>=2.0",
@@ -39,3 +42,4 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
+ignore = ["E501"]
