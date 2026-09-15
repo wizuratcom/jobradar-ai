@@ -52,10 +52,18 @@ def extract_text(text: str, *, source_name: str = "text") -> RawJobData:
     title = next((line.split(":", 1)[1].strip() for line in lines if line.casefold().startswith(("title:", "position:"))), lines[0] if lines else "Unknown title")
     company = next((line.split(":", 1)[1].strip() for line in lines if line.casefold().startswith(("company:", "employer:"))), "Unknown company")
     location = next((line.split(":", 1)[1].strip() for line in lines if line.casefold().startswith("location:")), None)
-    salary = next((line.split(":", 1)[1].strip() for line in lines if line.casefold().startswith("salary:")), None)
+    salary = next(
+        (line.split(":", 1)[1].strip() for line in lines if line.casefold().startswith("salary:")),
+        None,
+    )
+    if salary is None:
+        salary = _salary_from_text(text)
     mode = next((line.split(":", 1)[1].strip() for line in lines if line.casefold().startswith(("work mode:", "remote:"))), None)
+    if mode is None and re.search(r"\bremote\b", text, re.I):
+        mode = "remote"
     required_line = next((line.split(":", 1)[1] for line in lines if line.casefold().startswith(("required skills:", "requirements:"))), "")
     required = [item.strip() for item in re.split(r"[,;|]", required_line) if item.strip()]
+    required_experience = _required_experience_from_text(text)
     return RawJobData(
         source_name=source_name,
         raw_title=title,
@@ -65,12 +73,36 @@ def extract_text(text: str, *, source_name: str = "text") -> RawJobData:
         raw_work_mode=mode,
         raw_salary=salary,
         raw_required_skills=required,
+        raw_hard_requirements=[required_experience] if required_experience else None,
+        raw_required_experience=required_experience,
         raw_text=text,
     )
 
 
 def extract_json(payload: dict[str, object]) -> RawJobData:
     return raw_from_mapping(payload, source_name="json")
+
+
+def _salary_from_text(text: str) -> str | None:
+    """Find a plainly currency-marked salary without guessing its period."""
+    number = r"\d(?:[\d, ]*\d)?(?:\.\d+)?\s*k?"
+    suffix = r"(?:\s+(?:gross|net))?(?:\s+(?:(?:per\s+)?monthly|month|year|annual))?"
+    pattern = (
+        rf"(?:[$€]\s*{number}(?:\s*-\s*[$€]?\s*{number})?{suffix}"
+        rf"|{number}\s*-\s*{number}\s*[$€]{suffix}"
+        rf"|{number}\s*[$€]{suffix})"
+    )
+    match = re.search(pattern, text)
+    return clean_text(match.group(0)) if match else None
+
+
+def _required_experience_from_text(text: str) -> str | None:
+    match = re.search(
+        r"(?:requirements?\s*:|must have|at least)\s*([^.!\n]*\b\d+\+?\s+years[^.!\n]*)",
+        text,
+        re.I,
+    )
+    return clean_text(match.group(1)) if match else None
 
 
 def extract_json_ld(html: str, source_url: str) -> RawJobData | None:

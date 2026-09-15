@@ -118,10 +118,12 @@ def test_work_mode_normalization(raw_value: str, expected: str) -> None:
         ("2,000 EUR monthly", "2000", None, "EUR", "month"),
         ("2500 EUR monthly", "2500", None, "EUR", "month"),
         ("€2k-2.8k gross monthly", "2000", "2800", "EUR", "month"),
+        ("$6,000 - $8,000", "6000", "8000", "USD", None),
+        ("6 000 - 8 000$", "6000", "8000", "USD", None),
     ],
 )
 def test_salary_normalizes_thousands_and_k_notation(
-    value: str, minimum: str, maximum: str | None, currency: str, period: str
+    value: str, minimum: str, maximum: str | None, currency: str, period: str | None
 ) -> None:
     result = normalize_salary(value)
     assert result[0] == Decimal(minimum)

@@ -51,10 +51,16 @@ def merge_extraction(raw: RawJobData, extracted: AIExtractionResult) -> RawJobDa
         source_name=raw.source_name, source_url=raw.source_url, raw_payload=raw.raw_payload,
         raw_text=raw.raw_text, raw_title=extracted.title or raw.raw_title,
         raw_company=extracted.company or raw.raw_company,
-        raw_description=extracted.description or raw.raw_description,
+        # The user-supplied source is authoritative; an extraction summary must not
+        # silently discard the full vacancy text needed for later review.
+        raw_description=raw.raw_description or extracted.description or "",
         application_url=extracted.application_url or raw.application_url,
         raw_location=extracted.location or raw.raw_location,
-        raw_work_mode=extracted.work_mode or raw.raw_work_mode,
+        raw_work_mode=(
+            extracted.work_mode
+            if extracted.work_mode and extracted.work_mode != "unknown"
+            else raw.raw_work_mode
+        ),
         raw_employment_type=raw.raw_employment_type,
         raw_salary=extracted.raw_salary or raw.raw_salary,
         raw_salary_min=extracted.salary_min or raw.raw_salary_min,
@@ -64,10 +70,12 @@ def merge_extraction(raw: RawJobData, extracted: AIExtractionResult) -> RawJobDa
         raw_salary_gross=extracted.salary_gross if extracted.salary_gross is not None else raw.raw_salary_gross,
         raw_required_skills=extracted.required_skills or raw.raw_required_skills,
         raw_preferred_skills=extracted.preferred_skills or raw.raw_preferred_skills,
-        raw_hard_requirements=extracted.hard_requirements,
-        raw_preferred_requirements=extracted.preferred_requirements,
-        raw_required_experience=extracted.required_experience,
-        raw_preferred_experience=extracted.preferred_experience,
+        raw_hard_requirements=extracted.hard_requirements or raw.raw_hard_requirements,
+        raw_preferred_requirements=(
+            extracted.preferred_requirements or raw.raw_preferred_requirements
+        ),
+        raw_required_experience=extracted.required_experience or raw.raw_required_experience,
+        raw_preferred_experience=extracted.preferred_experience or raw.raw_preferred_experience,
         company_website=extracted.company_website,
         contact_name=extracted.contact_name,
         contact_email=extracted.contact_email,

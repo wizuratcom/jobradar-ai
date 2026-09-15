@@ -18,14 +18,21 @@ TITLE_STOP_WORDS = {"senior", "junior", "lead", "staff", "principal", "the", "a"
 TITLE_EQUIVALENTS = {"developer": "software_builder", "engineer": "software_builder"}
 TITLE_DOMAINS = {"backend", "frontend", "data", "devops", "mobile"}
 TITLE_TECHNOLOGIES = {"python", "java", "javascript", "typescript", "golang", "ruby", "php"}
+SKILL_ALIASES = {"postgres": "postgresql"}
+
+
+def _skill_key(value: str) -> str:
+    """Map only explicit, controlled technical aliases before comparison."""
+    normalized = normalize_text(value)
+    return SKILL_ALIASES.get(normalized, normalized)
 
 
 def _matching_items(required: list[str], candidate_skills: list[str]) -> list[str]:
-    candidate_by_normalized = {normalize_text(skill): skill for skill in candidate_skills}
+    candidate_by_normalized = {_skill_key(skill): skill for skill in candidate_skills}
     return [
-        candidate_by_normalized[normalize_text(skill)]
+        candidate_by_normalized[_skill_key(skill)]
         for skill in required
-        if normalize_text(skill) in candidate_by_normalized
+        if _skill_key(skill) in candidate_by_normalized
     ]
 
 
@@ -96,9 +103,9 @@ def calculate_match(job: JobPosting, candidate: CandidateProfile) -> MatchResult
     matched_core = _matching_items(required_skills, candidate.core_skills)
     matched_secondary = _matching_items(required_skills, candidate.secondary_skills)
     all_candidate_skills = candidate.core_skills + candidate.secondary_skills
-    known_skills = {normalize_text(skill) for skill in all_candidate_skills}
+    known_skills = {_skill_key(skill) for skill in all_candidate_skills}
     missing_skills = [
-        skill for skill in required_skills if normalize_text(skill) not in known_skills
+        skill for skill in required_skills if _skill_key(skill) not in known_skills
     ]
     breakdown = ScoreBreakdown(
         title=_title_score(job.title, candidate.desired_titles),

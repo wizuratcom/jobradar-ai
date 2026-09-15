@@ -3,7 +3,7 @@ import json
 from app.modules.imports.ai_schemas import AIExtractionResult
 from app.modules.jobs.normalization import RawJobData
 
-EXTRACTION_PROMPT_VERSION = "extraction-v1"
+EXTRACTION_PROMPT_VERSION = "extraction-v2"
 
 
 def build_extraction_messages(raw: RawJobData) -> list[dict[str, str]]:
@@ -24,7 +24,9 @@ def build_extraction_messages(raw: RawJobData) -> list[dict[str, str]]:
     system = (
         "Extract only information supported by the supplied vacancy. Do not invent missing "
         "information. Do not convert assumptions into facts. Distinguish must-have/required "
-        "requirements from nice-to-have/preferred requirements. Put technologies/tools only in "
+        "requirements from nice-to-have/preferred requirements. Do not turn technologies "
+        "mentioned only in responsibilities into required skills: include them only when the "
+        "source explicitly presents them as a requirement. Put technologies/tools only in "
         "required_skills or preferred_skills. Put broader non-skill conditions (experience, "
         "language, work authorization, degree) in hard_requirements or preferred_requirements. "
         "Return only JSON matching the schema."

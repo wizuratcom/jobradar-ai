@@ -7,7 +7,8 @@ from app.modules.assessment.config import GradeConfig
 from app.modules.assessment.service import fake_assessment
 from app.modules.candidate.schemas import CandidateProfile
 from app.modules.imports import router as imports_router
-from app.modules.imports.ai_service import fake_extraction
+from app.modules.imports.ai_schemas import AIExtractionResult
+from app.modules.imports.ai_service import fake_extraction, merge_extraction
 from app.modules.imports.extractors import extract_json, extract_json_ld, extract_text
 from app.modules.imports.url_fetch import URLImportError, _validate_host
 from app.modules.jobs.models import JobPosting
@@ -28,6 +29,28 @@ def test_text_and_json_extractors_preserve_source_content() -> None:
     assert structured.raw_title == "Backend Engineer"
     assert structured.raw_company == "Acme"
     assert structured.raw_payload["position"] == "Backend Engineer"
+
+
+def test_text_extractor_finds_remote_and_currency_marked_salary_without_labels() -> None:
+    extracted = extract_text(
+        "Senior Python Developer. $6,000 - $8,000. Flexible work setup: remote model in Serbia."
+    )
+    assert extracted.raw_work_mode == "remote"
+    assert extracted.raw_salary == "$6,000 - $8,000"
+
+
+def test_text_extractor_preserves_explicit_experience_requirement() -> None:
+    extracted = extract_text(
+        "Requirements: 9+ years of backend development experience. Strong Python proficiency."
+    )
+    assert extracted.raw_required_experience == "9+ years of backend development experience"
+    assert extracted.raw_hard_requirements == ["9+ years of backend development experience"]
+
+
+def test_ai_merge_preserves_full_user_supplied_description() -> None:
+    raw = extract_text("Senior Python Developer\nFull vacancy text with all requirements.")
+    extracted = AIExtractionResult(title="Senior Python Developer", description="Short summary.")
+    assert merge_extraction(raw, extracted).raw_description == raw.raw_description
 
 
 def test_json_ld_jobposting_is_extracted() -> None:
