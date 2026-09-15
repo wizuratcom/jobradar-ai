@@ -4,8 +4,11 @@ from typing import Protocol
 
 from app.core.config import Settings
 from app.modules.analysis.schemas import JobAnalysisResult
+from app.modules.assessment.schemas import AssessmentResult
 from app.modules.candidate.schemas import CandidateProfile
+from app.modules.imports.ai_schemas import AIExtractionResult
 from app.modules.jobs.models import JobPosting
+from app.modules.jobs.normalization import RawJobData
 from app.modules.matching.schemas import MatchResult
 
 
@@ -19,6 +22,16 @@ class LLMProvider(Protocol):
         candidate: CandidateProfile,
         deterministic_match: MatchResult,
     ) -> JobAnalysisResult: ...
+
+    async def assess_job(
+        self,
+        job: JobPosting,
+        candidate: CandidateProfile,
+        deterministic_match: MatchResult,
+        grade: int,
+    ) -> AssessmentResult: ...
+
+    async def extract_job(self, raw: RawJobData) -> AIExtractionResult: ...
 
 
 def create_llm_provider(settings: Settings) -> LLMProvider:

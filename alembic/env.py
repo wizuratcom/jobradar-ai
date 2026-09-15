@@ -10,6 +10,7 @@ from app.core.config import get_settings
 from app.core.database import Base
 from app.modules.analysis.models import JobAnalysis  # noqa: F401
 from app.modules.candidate.models import CandidateProfileRecord  # noqa: F401
+from app.modules.imports.ai_models import AIExtraction  # noqa: F401
 from app.modules.jobs.models import JobPosting, JobSourceRecord  # noqa: F401
 from app.modules.matches.models import JobMatch  # noqa: F401
 from app.modules.users.models import User  # noqa: F401

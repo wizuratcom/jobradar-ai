@@ -19,6 +19,13 @@ class Settings(BaseSettings):
     llm_model: str | None = None
     llm_timeout_seconds: float = Field(default=30, gt=0, le=120)
     llm_max_retries: int = Field(default=2, ge=0, le=5)
+    ai_default_grade: int = Field(default=1, ge=0, le=3)
+    ai_grade1_model: str = "gpt-5.6-luna"
+    ai_grade2_model: str = "gpt-5.6-luna"
+    ai_grade3_model: str = "gpt-5.6-terra"
+    ai_grade1_reasoning: str = "low"
+    ai_grade2_reasoning: str = "medium"
+    ai_grade3_reasoning: str = "high"
 
     model_config = SettingsConfigDict(
         env_file=".env",

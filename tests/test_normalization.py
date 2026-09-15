@@ -1,7 +1,14 @@
+from decimal import Decimal
+
 import pytest
 
 from app.modules.jobs.extraction import ManualJobExtractor
-from app.modules.jobs.normalization import JobNormalizer, RawJobData, normalize_work_mode
+from app.modules.jobs.normalization import (
+    JobNormalizer,
+    RawJobData,
+    normalize_salary,
+    normalize_work_mode,
+)
 from app.modules.jobs.schemas import JobCreate
 
 
@@ -101,3 +108,26 @@ def test_manual_extractor_preserves_raw_source_representation() -> None:
 )
 def test_work_mode_normalization(raw_value: str, expected: str) -> None:
     assert normalize_work_mode(raw_value) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "minimum", "maximum", "currency", "period"),
+    [
+        ("€2,000-2,800 gross per month", "2000", "2800", "EUR", "month"),
+        ("$3,500-$5,000 annual", "3500", "5000", "USD", "year"),
+        ("2,000 EUR monthly", "2000", None, "EUR", "month"),
+        ("2500 EUR monthly", "2500", None, "EUR", "month"),
+        ("€2k-2.8k gross monthly", "2000", "2800", "EUR", "month"),
+    ],
+)
+def test_salary_normalizes_thousands_and_k_notation(
+    value: str, minimum: str, maximum: str | None, currency: str, period: str
+) -> None:
+    result = normalize_salary(value)
+    assert result[0] == Decimal(minimum)
+    assert result[1] == Decimal(maximum) if maximum is not None else result[1] is None
+    assert result[2:] == (currency, period, True if "gross" in value else None)
+
+
+def test_salary_leaves_ambiguous_comma_decimal_unparsed() -> None:
+    assert normalize_salary("€2,50 monthly") == (None, None, None, None, None)

@@ -17,6 +17,7 @@ score. No cloud account or API key is required.
 - [x] Docker Compose
 - [x] LLM-assisted job analysis
 - [x] Canonical vacancy normalization and provenance
+- [x] Smart vacancy import and graded assessment
 - [ ] Telegram notifications
 - [ ] Automated job-source adapters
 - [ ] Prometheus metrics
@@ -234,6 +235,54 @@ nor stored.
 The prompt explicitly forbids fabricated candidate experience, employers,
 years, achievements, metrics, certifications, or unlisted technologies. A job
 requirement absent from the profile is reported as a gap instead.
+
+## Smart vacancy import
+
+The primary workflow is: “I already found vacancies. JobRadar reads them for
+me.” Use `POST /api/v1/jobs/import` with `input_type` set to `text`, `json`, or
+`url`. The endpoint extracts what is safely available, normalizes it, stores
+the canonical job and provenance, creates a deterministic match, and optionally
+creates an assessment in one request.
+
+For Grade 1+, deterministic extraction runs first and optional AI extraction
+fills only missing, unstructured vacancy facts. AI extraction and candidate-fit
+assessment are separate operations with separate prompt versions and usage
+records. Grade 0 never calls AI.
+
+Grade 0 is deterministic only. Grade 1 screens whether a vacancy is worth the
+user's time, Grade 2 adds application guidance, and Grade 3 adds interview
+preparation. Models and reasoning settings are configured with the
+`AI_GRADE*_MODEL` and `AI_GRADE*_REASONING` variables. Fake mode
+(`LLM_ENABLED=true`, `LLM_PROVIDER=fake`) supports all grades offline.
+
+If AI fails, the imported job and deterministic match remain available; the
+response contains a warning. Retry with
+`POST /api/v1/jobs/{job_id}/assess?grade=1|2|3`. Use
+`GET /api/v1/jobs/{job_id}/review` for the vacancy, provenance, latest match,
+and latest assessment together.
+
+Use `GET /api/v1/jobs/review-list?sort=newest` to review many imports, or
+`sort=score_desc` to prefer the latest AI fit score when one exists and fall
+back to the latest deterministic score. Each row exposes both scores, verdicts,
+requirement counts, blockers, canonical location/work mode, salary summary,
+and import time.
+
+Skills and broader requirements are intentionally distinct: required/preferred
+skills are explicit technologies (for example, Python or AWS); hard/preferred
+requirements are non-skill conditions (for example, 3+ years of experience,
+language, authorization, or degree requirements). Review combines both groups
+instead of duplicating a skill in two fields.
+
+Salary normalization supports deterministic, unambiguous forms including
+`€2,000-2,800`, `$3,500-$5,000`, `2500 EUR`, and `€2k-2.8k`. Ambiguous forms
+remain unknown. Title matching uses meaningful job-family tokens, including a
+small `developer`/`engineer` equivalence; backend, frontend, data, devops,
+mobile, and technology terms still prevent false equivalence.
+
+URL imports accept only public HTTP(S), reject private/loopback/link-local and
+metadata addresses, revalidate redirects, limit redirects and response size,
+and never execute JavaScript or bypass authentication. If a page cannot be
+fetched, paste its visible text instead.
 
 ## Candidate profile
 

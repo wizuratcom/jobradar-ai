@@ -10,6 +10,19 @@ from app.modules.matching.schemas import MatchResult
 
 
 def to_analysis_read(record: JobAnalysis) -> JobAnalysisRead:
+    payload = record.analysis_payload
+    if "recommendation" not in payload:
+        payload = {
+            "recommendation": payload.get("verdict", record.recommendation),
+            "summary": payload.get("concise_summary", "Structured graded assessment."),
+            "strengths": payload.get("candidate_strengths", []),
+            "gaps": payload.get("required_missing", []),
+            "risk_factors": payload.get("risks", []),
+            "cv_emphasis": payload.get("cv_emphasis", []),
+            "recruiter_message": payload.get("recruiter_message") or "Review the assessment before applying.",
+            "interview_topics": payload.get("likely_technical_topics", []),
+            "questions_to_prepare": payload.get("questions_to_prepare", []),
+        }
     return JobAnalysisRead(
         id=record.id,
         job_id=record.job_id,
@@ -17,7 +30,14 @@ def to_analysis_read(record: JobAnalysis) -> JobAnalysisRead:
         provider=record.provider,
         model=record.model,
         recommendation=record.recommendation,
-        analysis=JobAnalysisResult.model_validate(record.analysis_payload),
+        grade=record.grade,
+        fit_score=record.fit_score,
+        prompt_version=record.prompt_version,
+        purpose=record.purpose,
+        input_tokens=record.input_tokens,
+        output_tokens=record.output_tokens,
+        reasoning_tokens=record.reasoning_tokens,
+        analysis=JobAnalysisResult.model_validate(payload),
         created_at=record.created_at,
     )
 

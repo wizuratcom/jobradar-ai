@@ -27,6 +27,13 @@ class JobAnalysisRead(BaseModel):
     provider: str
     model: str | None
     recommendation: Recommendation
+    grade: int = 1
+    fit_score: int | None = None
+    prompt_version: str = "analysis-v1"
+    purpose: str = "grade1_screening"
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    reasoning_tokens: int | None = None
     analysis: JobAnalysisResult
     created_at: datetime
 

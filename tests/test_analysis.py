@@ -19,8 +19,9 @@ def job_payload() -> dict[str, object]:
 
 
 @pytest.mark.asyncio
-async def test_analysis_api_is_disabled_by_default() -> None:
+async def test_analysis_api_is_disabled_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
     await init_test_database()
+    monkeypatch.setattr(analysis_router, "get_settings", lambda: Settings(llm_enabled=False))
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         headers = await authenticated_headers(client, "disabled@example.com")
