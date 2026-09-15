@@ -58,3 +58,29 @@ class JobPage(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class JobReviewListItem(BaseModel):
+    job_id: int
+    title: str
+    company: str
+    location_text: str | None
+    work_mode: str
+    salary_summary: str | None
+    deterministic_score: int | None
+    deterministic_recommendation: str | None
+    latest_assessment_grade: int | None
+    ai_fit_score: int | None
+    ai_verdict: str | None
+    matched_required_count: int
+    missing_required_count: int
+    preferred_gap_count: int
+    blocker_count: int
+    imported_at: datetime
+
+
+class JobReviewListPage(BaseModel):
+    items: list[JobReviewListItem]
+    total: int
+    limit: int
+    offset: int
