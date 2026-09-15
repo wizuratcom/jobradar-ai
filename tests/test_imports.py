@@ -166,6 +166,7 @@ async def test_real_smoke_shape_regression_uses_canonical_semantics(
     assert response.status_code == 201
     assert body["job"]["salary_min"] == 2000
     assert body["job"]["salary_max"] == 2800
+    assert body["job"]["title"] == "Python Backend Engineer"
     assert body["match"]["breakdown"]["title"] == 25
     assert body["job"]["required_skills"] == ["Python", "FastAPI", "PostgreSQL", "Docker"]
     assert body["job"]["preferred_skills"] == ["AWS"]

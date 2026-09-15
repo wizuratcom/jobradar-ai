@@ -24,7 +24,9 @@ def fake_extraction(raw: RawJobData) -> AIExtractionResult:
         preferred = _skills_after(text, r"(?:nice to have|preferred|plus|advantage)\s*[:\-]?\s*([^.!\n]+)")
     if re.search(r"\baws\b[^.\n]{0,40}\b(?:plus|preferred|nice to have|advantage)\b", text, re.I):
         preferred = ["AWS"]
-    title = raw.raw_title if raw.raw_title != "Unknown title" else _title_from_text(text)
+    title = raw.raw_title
+    if title == "Unknown title" or len(title) > 200:
+        title = _title_from_text(text)
     company = raw.raw_company if raw.raw_company != "Unknown company" else None
     required_experience = _experience_after(text, r"(?:required|must have|at least)")
     preferred_experience = _experience_after(text, r"(?:preferred|nice to have|plus)")
