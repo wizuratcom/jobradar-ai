@@ -22,8 +22,20 @@ class RawJobData:
     raw_salary_min: Decimal | float | int | None = None
     raw_salary_max: Decimal | float | int | None = None
     raw_salary_currency: str | None = None
+    raw_salary_period: str | None = None
+    raw_salary_gross: bool | None = None
     raw_required_skills: list[str] | None = None
     raw_preferred_skills: list[str] | None = None
+    raw_hard_requirements: list[str] | None = None
+    raw_preferred_requirements: list[str] | None = None
+    raw_required_experience: str | None = None
+    raw_preferred_experience: str | None = None
+    company_website: str | None = None
+    contact_name: str | None = None
+    contact_email: str | None = None
+    contact_phone: str | None = None
+    application_instructions: str | None = None
+    source_published_at: str | None = None
     raw_payload: dict[str, object] | None = None
     raw_text: str | None = None
 
@@ -100,14 +112,19 @@ def normalize_salary(
         else None
     )
     gross = True if "gross" in text else False if "net" in text else None
-    numbers = re.findall(r"\d+(?:[.,]\d+)?\s*k?", text)
+    # A comma followed by one or two digits is ambiguous across locales (for example,
+    # 2,50 may be a decimal amount), so do not guess.
+    if re.search(r"\d+,\d{1,2}(?!\d)", text):
+        return None, None, None, None, None
+    numbers = re.findall(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?\s*k?", text)
     if not currency or not period or not numbers or len(numbers) > 2:
         return None, None, None, None, None
 
     def amount(item: str) -> Decimal:
-        return Decimal(item.replace("k", "")) * (1000 if item.endswith("k") else 1)
+        normalized = item.replace(",", "").replace("k", "")
+        return Decimal(normalized) * (1000 if item.endswith("k") else 1)
 
-    values = [amount(item.replace(",", ".")) for item in numbers]
+    values = [amount(item) for item in numbers]
     return values[0], values[1] if len(values) == 2 else None, currency, period, gross
 
 
@@ -115,6 +132,8 @@ def normalize_structured_salary(
     minimum: Decimal | float | int | None,
     maximum: Decimal | float | int | None,
     currency: str | None,
+    period: str | None = None,
+    gross: bool | None = None,
 ) -> tuple[Decimal | None, Decimal | None, str | None, str | None, bool | None]:
     normalized_currency = currency.strip().upper() if currency else None
     if normalized_currency and len(normalized_currency) != 3:
@@ -123,8 +142,8 @@ def normalize_structured_salary(
         Decimal(str(minimum)) if minimum is not None else None,
         Decimal(str(maximum)) if maximum is not None else None,
         normalized_currency,
-        None,
-        None,
+        period if period in {"month", "year"} else None,
+        gross,
     )
 
 
@@ -134,7 +153,8 @@ class JobNormalizer:
             normalize_salary(raw.raw_salary)
             if raw.raw_salary
             else normalize_structured_salary(
-                raw.raw_salary_min, raw.raw_salary_max, raw.raw_salary_currency
+                raw.raw_salary_min, raw.raw_salary_max, raw.raw_salary_currency,
+                raw.raw_salary_period, raw.raw_salary_gross,
             )
         )
         warnings: list[str] = []
