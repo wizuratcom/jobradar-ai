@@ -1,6 +1,9 @@
 from app.modules.analysis.schemas import JobAnalysisResult
 from app.modules.candidate.schemas import CandidateProfile
+from app.modules.imports.ai_schemas import AIExtractionResult
+from app.modules.imports.ai_service import fake_extraction
 from app.modules.jobs.models import JobPosting
+from app.modules.jobs.normalization import RawJobData
 from app.modules.matching.schemas import MatchResult
 
 
@@ -51,3 +54,6 @@ class FakeLLMProvider:
             questions_to_prepare=[f"How does this role evaluate {skill}?" for skill in gaps]
             or ["Which project outcomes matter most during the first months in this role?"],
         )
+
+    async def extract_job(self, raw: RawJobData) -> AIExtractionResult:
+        return fake_extraction(raw)

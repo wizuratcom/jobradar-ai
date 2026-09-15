@@ -82,6 +82,7 @@ class JobSourceRecord(Base):
     extracted_data: Mapped[dict[str, object]] = mapped_column(JSON)
     normalization_warnings: Mapped[list[str]] = mapped_column(JSON, default=list)
     normalization_version: Mapped[str] = mapped_column(String(20))
+    contact_data: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
