@@ -116,12 +116,14 @@ def normalize_salary(
     # 2,50 may be a decimal amount), so do not guess.
     if re.search(r"\d+,\d{1,2}(?!\d)", text):
         return None, None, None, None, None
-    numbers = re.findall(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?\s*k?", text)
-    if not currency or not period or not numbers or len(numbers) > 2:
+    numbers = re.findall(
+        r"\d{1,3}(?:[,\s]\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?\s*k?", text
+    )
+    if not currency or not numbers or len(numbers) > 2:
         return None, None, None, None, None
 
     def amount(item: str) -> Decimal:
-        normalized = item.replace(",", "").replace("k", "")
+        normalized = item.replace(",", "").replace(" ", "").replace("k", "")
         return Decimal(normalized) * (1000 if item.endswith("k") else 1)
 
     values = [amount(item) for item in numbers]

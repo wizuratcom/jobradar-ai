@@ -15,7 +15,9 @@ def build_assessment_messages(
         "Assess this vacancy using only the supplied candidate profile, canonical vacancy, "
         "and deterministic match. Never invent experience, employers, years, technologies, "
         "metrics, education, or certifications. The deterministic score is authoritative. "
-        "Return only JSON matching the schema. Grade is depth, not permission to fabricate."
+        "Return only JSON matching the schema. Grade is depth, not permission to fabricate. "
+        "For Grade 1, provide screening fields only and leave deeper application/interview "
+        "preparation fields empty or null."
     )
     payload = {
         "grade": grade,

@@ -41,6 +41,29 @@ def test_unrelated_title_and_location_do_not_score() -> None:
         work_mode="onsite",
         required_skills=[],
     )
-    result = calculate_match(job, candidate())
+    profile = CandidateProfile(
+        name="Test Candidate",
+        desired_titles=["Python Backend Developer"],
+        core_skills=["PostgreSQL"],
+    )
+    result = calculate_match(job, profile)
     assert result.score == 0
     assert result.recommendation == "skip"
+
+
+def test_controlled_postgres_alias_matches_postgresql_skill() -> None:
+    job = JobPosting(
+        company="Acme",
+        title="Python Backend Developer",
+        description="Build APIs",
+        work_mode="remote",
+        required_skills=["Postgres"],
+    )
+    profile = CandidateProfile(
+        name="Test Candidate",
+        desired_titles=["Python Backend Developer"],
+        core_skills=["PostgreSQL"],
+    )
+    result = calculate_match(job, profile)
+    assert result.matched_core_skills == ["PostgreSQL"]
+    assert result.missing_skills == []
