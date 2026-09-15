@@ -26,6 +26,14 @@ class JobAnalysis(Base):
     provider: Mapped[str] = mapped_column(String(50))
     model: Mapped[str | None] = mapped_column(String(200), nullable=True)
     recommendation: Mapped[str] = mapped_column(String(20))
+    grade: Mapped[int] = mapped_column(Integer, default=1)
+    prompt_version: Mapped[str] = mapped_column(String(50), default="assessment-v1")
+    fit_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    purpose: Mapped[str] = mapped_column(String(50), default="grade1_screening")
+    input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cached_input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reasoning_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     analysis_payload: Mapped[dict[str, object]] = mapped_column(analysis_json_type)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
