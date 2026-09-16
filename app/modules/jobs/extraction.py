@@ -27,5 +27,6 @@ class ManualJobExtractor:
             raw_salary_currency=value.salary_currency or value.currency,
             raw_required_skills=value.required_skills,
             raw_preferred_skills=value.preferred_skills,
+            raw_stack_skills=value.stack_skills,
             raw_payload=value.model_dump(mode="json"),
         )

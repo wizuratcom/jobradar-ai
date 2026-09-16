@@ -108,7 +108,7 @@ class ImportService:
         match = await self._create_match(posting, profile, profile_id, user_id)
         assessment = None
         warnings = list(normalized.warnings)
-        if grade > 0:
+        if grade >= 2:
             try:
                 assessment = await self._assess(posting, profile, match, user_id, grade)
             except LLMProviderError as exc:

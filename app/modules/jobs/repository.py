@@ -20,6 +20,9 @@ class JobRepository:
             application_url=job.application_url,
             location_text=job.location_text,
             work_mode=job.work_mode,
+            remote_allowed=job.remote_allowed,
+            onsite_allowed=job.onsite_allowed,
+            hybrid_allowed=job.hybrid_allowed,
             employment_type=job.employment_type,
             salary_min=job.salary_min,
             salary_max=job.salary_max,
@@ -28,6 +31,7 @@ class JobRepository:
             salary_gross=job.salary_gross,
             required_skills=job.required_skills,
             preferred_skills=job.preferred_skills,
+            stack_skills=job.stack_skills,
         )
         self.session.add(posting)
         await self.session.flush()
@@ -46,6 +50,8 @@ class JobRepository:
                     "preferred_requirements": raw.raw_preferred_requirements or [],
                     "required_experience": raw.raw_required_experience,
                     "preferred_experience": raw.raw_preferred_experience,
+                    "required_experience_min_years": raw.raw_required_experience_min_years,
+                    "required_experience_area": raw.raw_required_experience_area,
                 },
                 contact_data={
                     "company_website": raw.company_website,

@@ -11,29 +11,57 @@ def normalize_text(value: str) -> str:
 
 
 TITLE_WEIGHT = 25
-CORE_SKILLS_WEIGHT = 40
-SECONDARY_SKILLS_WEIGHT = 20
+CORE_SKILLS_WEIGHT = 35
+SECONDARY_SKILLS_WEIGHT = 15
+STACK_SKILLS_WEIGHT = 10
 LOCATION_WEIGHT = 15
 TITLE_STOP_WORDS = {"senior", "junior", "lead", "staff", "principal", "the", "a", "an"}
 TITLE_EQUIVALENTS = {"developer": "software_builder", "engineer": "software_builder"}
 TITLE_DOMAINS = {"backend", "frontend", "data", "devops", "mobile"}
 TITLE_TECHNOLOGIES = {"python", "java", "javascript", "typescript", "golang", "ruby", "php"}
 SKILL_ALIASES = {"postgres": "postgresql"}
+CAPABILITY_SATISFIERS = {"relational_databases": {"postgresql"}}
 
 
 def _skill_key(value: str) -> str:
     """Map only explicit, controlled technical aliases before comparison."""
     normalized = normalize_text(value)
+    if re.fullmatch(r"python(?:\s+\d+(?:\.\d+)*)?", normalized):
+        return "python"
+    normalized = normalized.replace("http(s)", "http")
+    aliases = {
+        "rest api": "rest",
+        "restful api": "rest",
+        "restful apis": "rest",
+        "http/rest": "rest",
+        "relational database experience": "relational_databases",
+        "relational databases": "relational_databases",
+        "rdbms": "relational_databases",
+        "реляционные субд": "relational_databases",
+        "реляционные базы данных": "relational_databases",
+        "external api integration": "external_api_integration",
+        "external api integrations": "external_api_integration",
+        "third-party api integration": "external_api_integration",
+        "third party api integration": "external_api_integration",
+        "интеграция с внешними api": "external_api_integration",
+    }
+    normalized = aliases.get(normalized, normalized)
     return SKILL_ALIASES.get(normalized, normalized)
+
+
+def _candidate_match(required: str, candidate_by_key: dict[str, str]) -> str | None:
+    key = _skill_key(required)
+    if key in candidate_by_key:
+        return candidate_by_key[key]
+    for candidate_key in CAPABILITY_SATISFIERS.get(key, set()):
+        if candidate_key in candidate_by_key:
+            return candidate_by_key[candidate_key]
+    return None
 
 
 def _matching_items(required: list[str], candidate_skills: list[str]) -> list[str]:
     candidate_by_normalized = {_skill_key(skill): skill for skill in candidate_skills}
-    return [
-        candidate_by_normalized[_skill_key(skill)]
-        for skill in required
-        if _skill_key(skill) in candidate_by_normalized
-    ]
+    return [match for skill in required if (match := _candidate_match(skill, candidate_by_normalized))]
 
 
 def _proportional_score(matches: list[str], available: list[str], weight: int) -> int:
@@ -77,7 +105,7 @@ def _title_similarity(job_tokens: set[str], desired_tokens: set[str]) -> int:
 
 
 def _location_score(job: JobPosting, candidate: CandidateProfile) -> int:
-    if job.work_mode == "remote" and candidate.preferred_remote:
+    if (job.remote_allowed or job.work_mode in {"remote", "hybrid"}) and candidate.preferred_remote:
         return LOCATION_WEIGHT
     is_preferred_location = job.location_text and any(
         normalize_text(location) == normalize_text(job.location_text or "")
@@ -103,9 +131,9 @@ def calculate_match(job: JobPosting, candidate: CandidateProfile) -> MatchResult
     matched_core = _matching_items(required_skills, candidate.core_skills)
     matched_secondary = _matching_items(required_skills, candidate.secondary_skills)
     all_candidate_skills = candidate.core_skills + candidate.secondary_skills
-    known_skills = {_skill_key(skill) for skill in all_candidate_skills}
+    candidate_by_key = {_skill_key(skill): skill for skill in all_candidate_skills}
     missing_skills = [
-        skill for skill in required_skills if _skill_key(skill) not in known_skills
+        skill for skill in required_skills if _candidate_match(skill, candidate_by_key) is None
     ]
     breakdown = ScoreBreakdown(
         title=_title_score(job.title, candidate.desired_titles),
@@ -114,6 +142,11 @@ def calculate_match(job: JobPosting, candidate: CandidateProfile) -> MatchResult
             matched_secondary,
             candidate.secondary_skills,
             SECONDARY_SKILLS_WEIGHT,
+        ),
+        stack_skills=_proportional_score(
+            _matching_items(job.stack_skills or [], all_candidate_skills),
+            job.stack_skills or [],
+            STACK_SKILLS_WEIGHT,
         ),
         location=_location_score(job, candidate),
     )
@@ -124,5 +157,6 @@ def calculate_match(job: JobPosting, candidate: CandidateProfile) -> MatchResult
         breakdown=breakdown,
         matched_core_skills=matched_core,
         matched_secondary_skills=matched_secondary,
+        matched_stack_skills=_matching_items(job.stack_skills or [], all_candidate_skills),
         missing_skills=missing_skills,
     )

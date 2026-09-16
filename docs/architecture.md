@@ -37,20 +37,33 @@ canonical columns.
 User-supplied text, JSON, or a public URL enters a source-specific extractor
 and becomes `RawJobData`. The normalizer produces canonical data before one
 workflow creates `JobPosting`, `JobSourceRecord`, `UserJob`, and a
-deterministic `JobMatch`. Grade 0 stops there. Grades 1–3 add a validated,
-historical assessment without replacing the deterministic score.
+deterministic `JobMatch`. Grade 0 stops there. Grade 1 adds factual AI
+extraction/enrichment only; it does not create a candidate assessment. Grades
+2–3 add a validated historical assessment without replacing the deterministic
+score.
 
-For Grade 1+, the import service invokes AI extraction only when deterministic
-extraction leaves important facts unstructured. `AIExtraction` preserves the
-validated factual output, model, prompt version, and per-call usage separately
-from `JobAnalysis`. It then merges only supported facts into `RawJobData` and
-runs the existing pure normalizer. Assessment consumes only the canonical job,
-profile, and deterministic match.
+For Grade 1+, the import service invokes AI extraction/enrichment for a
+meaningful vacancy description. Structured title/company/location data remain
+authoritative, while enrichment extracts semantics embedded in the description.
+`AIExtraction` preserves validated factual output, model, prompt version, and
+per-call usage separately from `JobAnalysis`. It then merges only supported
+facts into `RawJobData` and runs the existing pure normalizer. Assessment
+consumes only the canonical job, profile, and deterministic match; its prompt
+treats the deterministic result as an auxiliary signal, never as a blocker.
 
 `required_skills` and `preferred_skills` contain technologies/tools. Broader
 non-skill conditions are stored separately as hard/preferred requirements in
 source extraction metadata. The review response combines both groups so a
 preferred technology such as AWS remains visible without duplicated storage.
+`stack_skills` captures explicitly mentioned technology stacks without turning
+every stack entry into a hard requirement. Work availability is stored through
+remote/onsite/hybrid flags in addition to the canonical display `work_mode`.
+
+Candidate capabilities are intentionally bounded by the database-backed
+CandidateProfile. Safe controlled aliases and the PostgreSQL → relational
+database capability relation help compare equivalent wording, but absent REST,
+external API integration, LLM, chatbot, or experience evidence remains an
+unknown/gap until the user adds truthful profile data.
 
 Development measurement only: one synthetic real Grade 1 import used 1,223
 input / 455 output tokens for extraction and 1,361 input / 1,229 output tokens

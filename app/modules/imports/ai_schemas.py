@@ -22,10 +22,13 @@ class AIExtractionResult(BaseModel):
     salary_gross: bool | None = None
     required_skills: list[str] = Field(default_factory=list)
     preferred_skills: list[str] = Field(default_factory=list)
+    stack_skills: list[str] = Field(default_factory=list)
     hard_requirements: list[str] = Field(default_factory=list)
     preferred_requirements: list[str] = Field(default_factory=list)
     required_experience: str | None = None
     preferred_experience: str | None = None
+    required_experience_min_years: int | None = Field(default=None, ge=0)
+    required_experience_area: str | None = None
     application_url: str | None = None
     company_website: str | None = None
     contact_name: str | None = None

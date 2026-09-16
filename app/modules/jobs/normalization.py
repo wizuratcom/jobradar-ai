@@ -26,10 +26,13 @@ class RawJobData:
     raw_salary_gross: bool | None = None
     raw_required_skills: list[str] | None = None
     raw_preferred_skills: list[str] | None = None
+    raw_stack_skills: list[str] | None = None
     raw_hard_requirements: list[str] | None = None
     raw_preferred_requirements: list[str] | None = None
     raw_required_experience: str | None = None
     raw_preferred_experience: str | None = None
+    raw_required_experience_min_years: int | None = None
+    raw_required_experience_area: str | None = None
     company_website: str | None = None
     contact_name: str | None = None
     contact_email: str | None = None
@@ -48,6 +51,9 @@ class CanonicalJobData:
     application_url: str | None
     location_text: str | None
     work_mode: WorkMode
+    remote_allowed: bool
+    onsite_allowed: bool
+    hybrid_allowed: bool
     employment_type: str | None
     salary_min: Decimal | None
     salary_max: Decimal | None
@@ -56,6 +62,7 @@ class CanonicalJobData:
     salary_gross: bool | None
     required_skills: list[str]
     preferred_skills: list[str]
+    stack_skills: list[str]
 
 
 @dataclass(frozen=True)
@@ -81,18 +88,29 @@ def normalize_skills(values: list[str] | None) -> list[str]:
 
 
 def normalize_work_mode(value: str | bool | None) -> WorkMode:
+    return normalize_work_arrangement(value)[0]
+
+
+def normalize_work_arrangement(value: str | bool | None) -> tuple[WorkMode, bool, bool, bool]:
     if value is True:
-        return "remote"
+        return "remote", True, False, False
     if value is False or value is None:
-        return "unknown"
+        return "unknown", False, False, False
     normalized = clean_text(value).casefold()
-    if "remote" in normalized:
-        return "remote"
-    if "hybrid" in normalized:
-        return "hybrid"
-    if normalized in {"onsite", "on-site", "office", "in office"}:
-        return "onsite"
-    return "unknown"
+    remote = "remote" in normalized or "удален" in normalized
+    onsite = (
+        normalized in {"onsite", "on-site", "office", "in office"}
+        or "office" in normalized
+        or "офис" in normalized
+    )
+    hybrid = "hybrid" in normalized or "гибрид" in normalized
+    if hybrid or (remote and onsite):
+        return "hybrid", remote or hybrid, onsite or hybrid, hybrid
+    if remote:
+        return "remote", True, False, False
+    if onsite:
+        return "onsite", False, True, False
+    return "unknown", False, False, False
 
 
 def normalize_salary(
@@ -162,6 +180,9 @@ class JobNormalizer:
         warnings: list[str] = []
         if raw.raw_salary and salary[0] is None:
             warnings.append("salary could not be deterministically normalized")
+        work_mode, remote_allowed, onsite_allowed, hybrid_allowed = normalize_work_arrangement(
+            raw.raw_work_mode
+        )
         return NormalizationResult(
             job=CanonicalJobData(
                 title=clean_text(raw.raw_title),
@@ -169,7 +190,10 @@ class JobNormalizer:
                 description=raw.raw_description.strip(),
                 application_url=raw.application_url,
                 location_text=clean_text(raw.raw_location) if raw.raw_location else None,
-                work_mode=normalize_work_mode(raw.raw_work_mode),
+                work_mode=work_mode,
+                remote_allowed=remote_allowed,
+                onsite_allowed=onsite_allowed,
+                hybrid_allowed=hybrid_allowed,
                 employment_type=clean_text(raw.raw_employment_type)
                 if raw.raw_employment_type
                 else None,
@@ -180,6 +204,7 @@ class JobNormalizer:
                 salary_gross=salary[4],
                 required_skills=normalize_skills(raw.raw_required_skills),
                 preferred_skills=normalize_skills(raw.raw_preferred_skills),
+                stack_skills=normalize_skills(raw.raw_stack_skills),
             ),
             warnings=warnings,
         )

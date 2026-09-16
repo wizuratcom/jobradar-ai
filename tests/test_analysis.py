@@ -53,5 +53,5 @@ async def test_fake_analysis_api_persists_valid_result(monkeypatch: pytest.Monke
         listing = await client.get(f"/api/v1/analyses?job_id={job_id}", headers=headers)
     assert retrieved.status_code == 200
     assert retrieved.json()["provider"] == "fake"
-    assert retrieved.json()["analysis"]["recommendation"] == "strong_apply"
+    assert retrieved.json()["analysis"]["recommendation"] == "apply"
     assert listing.json()["total"] >= 1

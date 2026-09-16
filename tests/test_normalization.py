@@ -7,6 +7,7 @@ from app.modules.jobs.normalization import (
     JobNormalizer,
     RawJobData,
     normalize_salary,
+    normalize_work_arrangement,
     normalize_work_mode,
 )
 from app.modules.jobs.schemas import JobCreate
@@ -90,8 +91,9 @@ def test_manual_extractor_preserves_raw_source_representation() -> None:
         "currency": None,
         "salary_currency": None,
         "salary_text": None,
-        "required_skills": [],
-        "preferred_skills": [],
+            "required_skills": [],
+            "preferred_skills": [],
+            "stack_skills": [],
     }
 
 
@@ -103,11 +105,23 @@ def test_manual_extractor_preserves_raw_source_representation() -> None:
         ("hybrid", "hybrid"),
         ("onsite", "onsite"),
         ("on-site", "onsite"),
+        ("удаленная работа", "remote"),
+        ("гибрид", "hybrid"),
+        ("работа в офисе", "onsite"),
         ("distributed", "unknown"),
     ],
 )
 def test_work_mode_normalization(raw_value: str, expected: str) -> None:
     assert normalize_work_mode(raw_value) == expected
+
+
+def test_office_or_remote_preserves_remote_availability() -> None:
+    assert normalize_work_arrangement("офис/удаленно") == ("hybrid", True, True, False)
+    assert normalize_work_arrangement("office / remote") == ("hybrid", True, True, False)
+
+
+def test_explicit_hybrid_is_distinct_from_separate_office_and_remote_options() -> None:
+    assert normalize_work_arrangement("гибрид") == ("hybrid", True, True, True)
 
 
 @pytest.mark.parametrize(
