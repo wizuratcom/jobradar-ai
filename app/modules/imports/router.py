@@ -44,7 +44,7 @@ async def assess_job(
     job_id: int,
     current_user: CurrentUser,
     session: SessionDependency,
-    grade: Annotated[int, Query(ge=1, le=3)] = 1,
+    grade: Annotated[int, Query(ge=2, le=3)] = 2,
 ) -> AssessmentRead:
     profile_record = await CandidateProfileRepository(session).get_by_user_id(current_user.id)
     profile = require_profile(profile_record)
@@ -98,6 +98,8 @@ async def review_job(job_id: int, current_user: CurrentUser, session: SessionDep
             "preferred_requirements": source.extracted_data.get("preferred_requirements", []),
             "required_experience": source.extracted_data.get("required_experience"),
             "preferred_experience": source.extracted_data.get("preferred_experience"),
+            "required_experience_min_years": source.extracted_data.get("required_experience_min_years"),
+            "required_experience_area": source.extracted_data.get("required_experience_area"),
         } if source else None,
         "match": JobMatchRead.model_validate(match).model_dump(mode="json") if match else None,
         "assessment": assessment_data,
