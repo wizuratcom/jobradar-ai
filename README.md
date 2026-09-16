@@ -1,9 +1,12 @@
 # JobRadar AI
 
-JobRadar AI is a portfolio-grade Python backend project. It accepts job
-postings through a REST API, saves them to PostgreSQL, loads a public example
-candidate profile from YAML, and produces an explainable deterministic match
-score. No cloud account or API key is required.
+JobRadar AI is a portfolio-grade Python backend for reviewing vacancies.
+It stores canonical vacancies in PostgreSQL, compares them with each
+authenticated user's database-backed candidate profile, and produces an
+explainable deterministic match. Optional AI assistance can extract a vacancy
+from text and prepare a screening result.
+
+No API key is required for deterministic matching or Grade 0 imports.
 
 ## Roadmap
 
@@ -38,6 +41,9 @@ migration fails, the API container exits and exposes the failure in its logs.
 
 Swagger UI is available at `http://localhost:8000/docs`. The health check is
 `http://localhost:8000/health`.
+
+For a local database extension, connect to `127.0.0.1:5433`. Port `5432` is
+inside the Docker network; `5433` is the intentionally exposed host port.
 
 PostgreSQL data is stored in the named `postgres_data` Docker volume, so it
 survives normal container restarts and `docker compose down`. To permanently
@@ -93,14 +99,24 @@ docker compose exec api alembic revision --autogenerate -m "description"
 
 ## API overview
 
-- `GET /health` — local service health check.
-- `POST /api/v1/jobs` — create a job posting.
-- `GET /api/v1/jobs?limit=20&offset=0` — list stored jobs with pagination.
-- `GET /api/v1/jobs/{job_id}` — retrieve one job.
-- `POST /api/v1/jobs/{job_id}/match` — calculate its candidate match.
-- `GET /api/v1/candidate` — view the loaded example candidate profile.
+- `GET /health` — service health check.
+- `POST /api/v1/auth/register` and `POST /api/v1/auth/login` — create an
+  account and obtain a bearer token.
+- `GET` / `PUT /api/v1/me/profile` — read or update the authenticated profile.
+- `POST /api/v1/jobs/import` — the normal workflow for text, JSON, or URL
+  vacancy imports.
+- `GET /api/v1/jobs/review-list` — review a user's imported vacancies.
+- `GET /api/v1/jobs/{job_id}/review` — see the vacancy, match, and latest
+  assessment together.
 
-### Add a vacancy through Swagger
+The lower-level job endpoints remain useful for development and debugging:
+
+- `POST /api/v1/jobs` — create a structured job posting manually.
+- `GET /api/v1/jobs?limit=20&offset=0` — list a user's stored jobs.
+- `GET /api/v1/jobs/{job_id}` — retrieve one associated job.
+- `POST /api/v1/jobs/{job_id}/match` — create a deterministic match.
+
+### Add a structured vacancy through Swagger
 
 1. Open `/docs`, expand `POST /api/v1/jobs`, select **Try it out**, and use:
 
@@ -157,18 +173,22 @@ matching reads the database-backed profile.
 ## Vacancy normalization
 
 Manual vacancy creation uses the same deterministic pipeline planned for future
-sources: `ManualJobCreate -> RawJobData -> JobNormalizer -> JobPosting +
-JobSourceRecord`. `JobPosting` is canonical; `JobSourceRecord` stores the
-manual/source provenance. `application_url` is the source-independent employer
-application destination. `JobSourceRecord.source_url` is the page where a
-source discovered the vacancy; future sources may create several provenance
-records for one canonical job. Legacy request fields `url`, `location`,
-`remote`, and `currency` are accepted only as compatibility aliases and are
-converted to `application_url`, `location_text`, `work_mode`, and
-`salary_currency` respectively. Supported work modes are `remote`, `hybrid`,
-`onsite`, and `unknown`. Ambiguous salary text is preserved as raw data with a
-warning rather than guessed. `candidate.example.yaml` is demo/reference data,
-not the runtime profile.
+sources:
+
+```text
+ManualJobCreate → RawJobData → JobNormalizer → JobPosting + JobSourceRecord
+```
+
+`JobPosting` is canonical. `JobSourceRecord` holds source provenance.
+`application_url` is the employer application destination, while
+`JobSourceRecord.source_url` is the page where JobRadar discovered the vacancy.
+Future sources may create several provenance records for one canonical job.
+
+Legacy request fields `url`, `location`, `remote`, and `currency` are accepted
+only at the API boundary. They are converted to `application_url`,
+`location_text`, `work_mode`, and `salary_currency`. Supported work modes are
+`remote`, `hybrid`, `onsite`, and `unknown`. Ambiguous salary text is preserved
+as raw data with a warning rather than guessed.
 
 ## LLM-assisted analysis
 
@@ -243,6 +263,21 @@ me.” Use `POST /api/v1/jobs/import` with `input_type` set to `text`, `json`, o
 `url`. The endpoint extracts what is safely available, normalizes it, stores
 the canonical job and provenance, and creates a deterministic match in one
 request.
+
+### Prepare pasted text for Swagger
+
+Swagger requires valid JSON, so literal line breaks inside a JSON string cause
+a `422 JSON decode error`. To prepare a pasted vacancy:
+
+1. Open `POST /api/v1/tools/one-line-text`.
+2. Select **Try it out** and choose the `text/plain` content type.
+3. Paste the vacancy with its original paragraphs and lists.
+4. Select **Execute**, then copy `text` from the response.
+5. Paste that one-line value into the `text` field of
+   `POST /api/v1/jobs/import`.
+
+This utility requires no authentication, does not call AI, and does not store
+the text.
 
 Grade 0 is deterministic only and never calls AI. Grade 1 uses one optional AI
 extraction/enrichment call for meaningful vacancy text, including when title or
@@ -337,7 +372,7 @@ every push and pull request to `main`.
 - `app/main.py` wires the FastAPI app and routes.
 - `app/core/database.py` owns the async PostgreSQL engine and session lifecycle.
 - `app/modules/jobs/` validates, normalizes, persists, and serves vacancies.
-- `app/modules/candidate/service.py` reads the YAML candidate profile.
+- `app/modules/candidate/` manages database-backed candidate profiles.
 - `app/modules/matching/service.py` contains all scoring rules.
 - `app/integrations/llm/` isolates optional provider adapters and prompt rules.
 - `app/modules/analysis/` validates and persists successful analysis history.
