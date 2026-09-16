@@ -8,6 +8,7 @@ from app.modules.candidate.router import router as candidate_router
 from app.modules.imports.router import router as imports_router
 from app.modules.jobs.router import router as jobs_router
 from app.modules.matches.router import router as matches_router
+from app.modules.tools.router import router as tools_router
 from app.modules.users.router import router as users_router
 
 
@@ -31,6 +32,7 @@ app.include_router(users_router)
 app.include_router(candidate_router)
 app.include_router(matches_router)
 app.include_router(imports_router)
+app.include_router(tools_router)
 
 
 @app.get("/health", tags=["system"])
