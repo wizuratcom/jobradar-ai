@@ -241,23 +241,30 @@ requirement absent from the profile is reported as a gap instead.
 The primary workflow is: “I already found vacancies. JobRadar reads them for
 me.” Use `POST /api/v1/jobs/import` with `input_type` set to `text`, `json`, or
 `url`. The endpoint extracts what is safely available, normalizes it, stores
-the canonical job and provenance, creates a deterministic match, and optionally
-creates an assessment in one request.
+the canonical job and provenance, and creates a deterministic match in one
+request.
 
-For Grade 1+, deterministic extraction runs first and optional AI extraction
-fills only missing, unstructured vacancy facts. AI extraction and candidate-fit
-assessment are separate operations with separate prompt versions and usage
-records. Grade 0 never calls AI.
+Grade 0 is deterministic only and never calls AI. Grade 1 uses one optional AI
+extraction/enrichment call for meaningful vacancy text, including when title or
+company already came from a structured source: descriptions often contain the
+real requirements, stack, work arrangement, salary, and contact details. Source
+facts remain authoritative; enrichment complements rather than replaces them.
+Grade 1 does not create an AI candidate assessment.
 
-Grade 0 is deterministic only. Grade 1 screens whether a vacancy is worth the
-user's time, Grade 2 adds application guidance, and Grade 3 adds interview
-preparation. Models and reasoning settings are configured with the
+Grade 2 adds an AI fit assessment and application guidance after Grade 1
+enrichment. Grade 3 adds deeper application and interview preparation. Models
+and reasoning settings are configured with the
 `AI_GRADE*_MODEL` and `AI_GRADE*_REASONING` variables. Fake mode
 (`LLM_ENABLED=true`, `LLM_PROVIDER=fake`) supports all grades offline.
 
+With AI enabled, the normal call counts are: Grade 0 = 0, Grade 1 = 1
+(extraction), Grade 2 = 2 (extraction + assessment), Grade 3 = 2 (extraction
++ deep assessment). If AI is disabled, deterministic import and matching still
+work; no external credential is required.
+
 If AI fails, the imported job and deterministic match remain available; the
-response contains a warning. Retry with
-`POST /api/v1/jobs/{job_id}/assess?grade=1|2|3`. Use
+response contains a warning. Retry an assessment with
+`POST /api/v1/jobs/{job_id}/assess?grade=2|3`. Use
 `GET /api/v1/jobs/{job_id}/review` for the vacancy, provenance, latest match,
 and latest assessment together.
 
@@ -272,6 +279,28 @@ skills are explicit technologies (for example, Python or AWS); hard/preferred
 requirements are non-skill conditions (for example, 3+ years of experience,
 language, authorization, or degree requirements). Review combines both groups
 instead of duplicating a skill in two fields.
+
+`stack_skills` preserves technologies explicitly mentioned as the vacancy stack
+without silently promoting each one to a mandatory requirement. Matching reports
+stack overlap independently; a missing stack technology is not automatically a
+hard gap. A small, explicit comparison layer recognizes safe variants such as
+`Python 3.13` → `Python`, `Postgres` → `PostgreSQL`, and `RESTful API` → `REST`.
+It also allows PostgreSQL to satisfy the broader stated capability “relational
+databases”; it never invents a candidate capability absent from the profile.
+
+Work arrangement preserves availability as well as the compact `work_mode`:
+`remote_allowed`, `onsite_allowed`, and `hybrid_allowed`. For example,
+`office / remote` is stored as a mixed arrangement with remote allowed, so an
+office city alone does not penalize a candidate who prefers remote work.
+`hybrid_allowed` is true only when the source explicitly offers hybrid work;
+separate office and remote options keep it false while preserving both
+availability flags.
+
+The deterministic score is transparent and bounded to 100: title relevance
+(25), matching core requirements (35), matching secondary requirements (15),
+matching explicitly mentioned stack technologies (10), and location/work-mode
+compatibility (15). Stack overlap raises confidence but technologies found only
+in the stack never become hard missing requirements.
 
 Salary normalization supports deterministic, unambiguous forms including
 `€2,000-2,800`, `$3,500-$5,000`, `2500 EUR`, and `€2k-2.8k`. Ambiguous forms
@@ -288,7 +317,10 @@ fetched, paste its visible text instead.
 
 `candidate.example.yaml` is deliberately fictional reference data. Runtime
 matching uses the authenticated user's PostgreSQL-backed profile managed via
-`PUT /api/v1/me/profile`. Do not commit private data.
+`PUT /api/v1/me/profile`. Do not commit private data. The matcher can only use
+truthful capabilities written in this profile. Missing evidence for REST,
+external API integration, LLM/chatbot work, or years of experience remains a
+gap or unknown rather than being inferred.
 
 ## Quality checks
 
