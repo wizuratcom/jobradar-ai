@@ -26,6 +26,7 @@ class JobCreate(BaseModel):
     salary_text: str | None = None
     required_skills: SkillList
     preferred_skills: SkillList
+    stack_skills: SkillList
 
 
 class JobRead(BaseModel):
@@ -41,6 +42,9 @@ class JobRead(BaseModel):
     remote: bool
     location_text: str | None
     work_mode: str
+    remote_allowed: bool
+    onsite_allowed: bool
+    hybrid_allowed: bool
     employment_type: str | None
     salary_min: float | None
     salary_max: float | None
@@ -50,6 +54,7 @@ class JobRead(BaseModel):
     salary_gross: bool | None
     required_skills: list[str]
     preferred_skills: list[str]
+    stack_skills: list[str]
     created_at: datetime
 
 

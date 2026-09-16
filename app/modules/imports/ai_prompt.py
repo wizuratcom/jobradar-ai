@@ -29,6 +29,9 @@ def build_extraction_messages(raw: RawJobData) -> list[dict[str, str]]:
         "source explicitly presents them as a requirement. Put technologies/tools only in "
         "required_skills or preferred_skills. Put broader non-skill conditions (experience, "
         "language, work authorization, degree) in hard_requirements or preferred_requirements. "
+        "Put technologies named as the stack, platform, or tools used by the role—but not "
+        "explicitly required or preferred—in stack_skills. Preserve structured source facts "
+        "when they conflict with uncertain interpretation. "
         "Return only JSON matching the schema."
     )
     return [

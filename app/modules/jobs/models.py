@@ -28,6 +28,9 @@ class JobPosting(Base):
     application_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     location_text: Mapped[str | None] = mapped_column(String(200), nullable=True)
     work_mode: Mapped[str] = mapped_column(String(20), default="unknown")
+    remote_allowed: Mapped[bool] = mapped_column(Boolean, default=False)
+    onsite_allowed: Mapped[bool] = mapped_column(Boolean, default=False)
+    hybrid_allowed: Mapped[bool] = mapped_column(Boolean, default=False)
     employment_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     salary_min: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     salary_max: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
@@ -36,6 +39,7 @@ class JobPosting(Base):
     salary_gross: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     required_skills: Mapped[list[str]] = mapped_column(JSON, default=list)
     preferred_skills: Mapped[list[str]] = mapped_column(JSON, default=list)
+    stack_skills: Mapped[list[str]] = mapped_column(JSON, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -54,7 +58,7 @@ class JobPosting(Base):
     @property
     def remote(self) -> bool:
         """Deprecated API alias derived from work_mode."""
-        return self.work_mode == "remote"
+        return self.remote_allowed or self.work_mode in {"remote", "hybrid"}
 
     @property
     def currency(self) -> str | None:
