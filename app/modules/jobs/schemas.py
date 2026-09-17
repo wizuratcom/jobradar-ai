@@ -55,6 +55,8 @@ class JobRead(BaseModel):
     required_skills: list[str]
     preferred_skills: list[str]
     stack_skills: list[str]
+    required_experience_min_years: int | None = None
+    required_experience_area: str | None = None
     created_at: datetime
 
 

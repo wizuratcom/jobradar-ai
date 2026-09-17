@@ -32,6 +32,8 @@ class JobRepository:
             required_skills=job.required_skills,
             preferred_skills=job.preferred_skills,
             stack_skills=job.stack_skills,
+            required_experience_min_years=job.required_experience_min_years,
+            required_experience_area=job.required_experience_area,
         )
         self.session.add(posting)
         await self.session.flush()
