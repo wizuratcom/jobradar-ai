@@ -6,6 +6,11 @@ from pydantic import BaseModel, Field
 from app.modules.analysis.schemas import Recommendation
 
 
+class GroundedRecommendation(BaseModel):
+    claim: str = Field(min_length=1, max_length=1000)
+    evidence_ids: list[int] = Field(default_factory=list)
+
+
 class AssessmentResult(BaseModel):
     grade: int = Field(ge=1, le=3)
     fit_score: int = Field(ge=0, le=100)
@@ -38,6 +43,7 @@ class AssessmentResult(BaseModel):
     system_design_topics: list[str] = Field(default_factory=list)
     study_gaps: list[str] = Field(default_factory=list)
     interviewer_questions: list[str] = Field(default_factory=list)
+    grounded_recommendations: list[GroundedRecommendation] = Field(default_factory=list)
 
 
 class AssessmentRead(AssessmentResult):

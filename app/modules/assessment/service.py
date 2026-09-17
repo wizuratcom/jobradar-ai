@@ -12,10 +12,18 @@ def fake_assessment(
 ) -> AssessmentResult:
     missing = match.missing_skills
     matched = match.matched_core_skills + match.matched_secondary_skills
-    candidate_skills = {skill.casefold() for skill in candidate.core_skills + candidate.secondary_skills}
-    preferred_matched = [skill for skill in job.preferred_skills if skill.casefold() in candidate_skills]
-    preferred_missing = [skill for skill in job.preferred_skills if skill.casefold() not in candidate_skills]
-    do_not_claim = [f"Do not claim experience with {skill} unless it is in the profile." for skill in missing]
+    candidate_skills = {
+        skill.casefold() for skill in candidate.core_skills + candidate.secondary_skills
+    }
+    preferred_matched = [
+        skill for skill in job.preferred_skills if skill.casefold() in candidate_skills
+    ]
+    preferred_missing = [
+        skill for skill in job.preferred_skills if skill.casefold() not in candidate_skills
+    ]
+    do_not_claim = [
+        f"Do not claim experience with {skill} unless it is in the profile." for skill in missing
+    ]
     result = AssessmentResult(
         grade=config.grade,
         fit_score=match.score,
@@ -29,7 +37,9 @@ def fake_assessment(
         risks=["Some vacancy details may be unknown from the supplied input."],
         unknowns=["Employer hiring process"] if config.grade >= 1 else [],
         candidate_strengths=matched,
-        cv_emphasis=[f"Emphasize {skill} only as present in the candidate profile." for skill in matched],
+        cv_emphasis=[
+            f"Emphasize {skill} only as present in the candidate profile." for skill in matched
+        ],
         cv_improvements=["Reorder existing truthful experience to emphasize the matched skills."],
         do_not_claim=do_not_claim,
         detailed_fit_explanation=(
@@ -51,7 +61,9 @@ def fake_assessment(
             if config.grade >= 2
             else None
         ),
-        application_strategy=("Review the missing requirements before applying." if config.grade >= 2 else None),
+        application_strategy=(
+            "Review the missing requirements before applying." if config.grade >= 2 else None
+        ),
         likely_screening_questions=[f"Describe your experience with {skill}." for skill in matched]
         if config.grade >= 2
         else [],
@@ -60,8 +72,22 @@ def fake_assessment(
         if config.grade >= 2
         else [],
         behavioral_questions=["Describe a relevant backend project."] if config.grade >= 3 else [],
-        system_design_topics=["Service boundaries and failure handling"] if config.grade >= 3 else [],
+        system_design_topics=["Service boundaries and failure handling"]
+        if config.grade >= 3
+        else [],
         study_gaps=missing if config.grade >= 3 else [],
-        interviewer_questions=["What would success look like in the first 90 days?"] if config.grade >= 3 else [],
+        interviewer_questions=["What would success look like in the first 90 days?"]
+        if config.grade >= 3
+        else [],
+        grounded_recommendations=(
+            [
+                {
+                    "claim": f"Emphasize evidence supporting {matched[0]}.",
+                    "evidence_ids": candidate.evidence[0:1] and [candidate.evidence[0].id] or [],
+                }
+            ]
+            if config.grade >= 2 and candidate.evidence and matched
+            else []
+        ),
     )
     return result
