@@ -5,6 +5,7 @@ from typing import Protocol
 from app.core.config import Settings
 from app.modules.analysis.schemas import JobAnalysisResult
 from app.modules.assessment.schemas import AssessmentResult
+from app.modules.candidate.context import CandidateAssessmentContext
 from app.modules.candidate.schemas import CandidateProfile
 from app.modules.imports.ai_schemas import AIExtractionResult
 from app.modules.jobs.models import JobPosting
@@ -26,7 +27,7 @@ class LLMProvider(Protocol):
     async def assess_job(
         self,
         job: JobPosting,
-        candidate: CandidateProfile,
+        candidate: CandidateAssessmentContext,
         deterministic_match: MatchResult,
         grade: int,
     ) -> AssessmentResult: ...

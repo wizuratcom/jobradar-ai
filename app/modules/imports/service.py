@@ -10,7 +10,14 @@ from app.modules.assessment.config import grade_config
 from app.modules.assessment.repository import AssessmentRepository
 from app.modules.assessment.schemas import AssessmentRead
 from app.modules.assessment.service import PROMPT_VERSION, fake_assessment
+from app.modules.candidate.context import CandidateContextBuilder
+from app.modules.candidate.repository import (
+    CandidateEvidenceRepository,
+    CandidateProfileRepository,
+    CandidateProjectRepository,
+)
 from app.modules.candidate.schemas import CandidateProfile
+from app.modules.candidate.service import to_assessment_context
 from app.modules.imports.ai_models import AIExtraction
 from app.modules.imports.ai_prompt import EXTRACTION_PROMPT_VERSION
 from app.modules.imports.ai_repository import AIExtractionRepository
@@ -46,7 +53,9 @@ class ImportService:
             return extract_json(request.payload or {})
         final_url, content_type, content = await fetch_public_url(str(request.url))
         if "json" in content_type:
-            return raw_from_mapping(__import__("json").loads(content), source_name="url-json", source_url=final_url)
+            return raw_from_mapping(
+                __import__("json").loads(content), source_name="url-json", source_url=final_url
+            )
         jsonld = extract_json_ld(content, final_url)
         if jsonld is not None:
             return jsonld
@@ -76,7 +85,10 @@ class ImportService:
         else:
             raise LLMProviderError("Unsupported extraction provider.")
         record = await AIExtractionRepository(self.session).create(
-            user_id=user_id, result=result, provider=provider_name, model=model,
+            user_id=user_id,
+            result=result,
+            provider=provider_name,
+            model=model,
             prompt_version=EXTRACTION_PROMPT_VERSION,
             input_tokens=usage.get("input_tokens"),
             cached_input_tokens=usage.get("cached_input_tokens"),
@@ -113,15 +125,21 @@ class ImportService:
                 assessment = await self._assess(posting, profile, match, user_id, grade)
             except LLMProviderError as exc:
                 warnings.append(f"assessment failed: {exc}")
-        source = await self.session.scalar(select(JobSourceRecord).where(JobSourceRecord.job_id == posting.id))
-        source_data = {
-            "id": source.id,
-            "job_id": source.job_id,
-            "source_name": source.source_name,
-            "source_url": source.source_url,
-            "normalization_warnings": source.normalization_warnings,
-            "normalization_version": source.normalization_version,
-        } if source else {}
+        source = await self.session.scalar(
+            select(JobSourceRecord).where(JobSourceRecord.job_id == posting.id)
+        )
+        source_data = (
+            {
+                "id": source.id,
+                "job_id": source.job_id,
+                "source_name": source.source_name,
+                "source_url": source.source_url,
+                "normalization_warnings": source.normalization_warnings,
+                "normalization_version": source.normalization_version,
+            }
+            if source
+            else {}
+        )
         return {
             "job": JobRead.model_validate(posting).model_dump(mode="json"),
             "source": source_data,
@@ -135,48 +153,99 @@ class ImportService:
     ) -> JobMatch:
         result = calculate_match(job, profile)
         return await JobMatchRepository(self.session).create(
-            user_id=user_id, job_id=job.id, profile_id=profile_id,
-            profile_snapshot=profile.model_dump(mode="json"), result=result,
+            user_id=user_id,
+            job_id=job.id,
+            profile_id=profile_id,
+            profile_snapshot=profile.model_dump(mode="json"),
+            result=result,
         )
 
     async def _assess(
-        self, job: JobPosting, profile: CandidateProfile, match_record: JobMatch,
-        user_id: int, grade: int,
+        self,
+        job: JobPosting,
+        profile: CandidateProfile,
+        match_record: JobMatch,
+        user_id: int,
+        grade: int,
     ) -> AssessmentRead:
         config = grade_config(grade, self.settings)
         if not self.settings.llm_enabled or self.settings.llm_provider == "disabled":
             raise LLMProviderError("AI assessment is disabled.")
         match = MatchResult.model_validate(match_record, from_attributes=True)
+        projects = await CandidateProjectRepository(self.session).list_for_user(user_id)
+        evidence = await CandidateEvidenceRepository(self.session).list_for_user(user_id)
+        candidate_context = CandidateContextBuilder(self.settings).build(
+            profile=profile, projects=projects, evidence=evidence, job=job, match=match, grade=grade
+        )
         if self.settings.llm_provider == "fake":
-            result = fake_assessment(job, profile, match, config)
+            selected_project_ids = {item["id"] for item in candidate_context.projects}
+            fake_profile = to_assessment_context(
+                profile,
+                [item for item in projects if item.id in selected_project_ids],
+                [item for item in evidence if item.id in candidate_context.selected_evidence_ids],
+            )
+            result = fake_assessment(job, fake_profile, match, config)
             provider_name = "fake"
         elif self.settings.llm_provider == "openai_compatible":
             provider = OpenAICompatibleLLMProvider.from_settings(self.settings)
             provider.model_name = config.model or provider.model_name
             provider.reasoning_effort = config.reasoning
-            result = await provider.assess_job(job, profile, match, grade)
+            result = await provider.assess_job(job, candidate_context, match, grade)
             provider_name = provider.provider_name
             usage = provider.last_usage
         else:
             raise LLMProviderError("Unsupported assessment provider.")
         if self.settings.llm_provider == "fake":
             usage = {}
+        owned_evidence_ids = await CandidateProfileRepository(self.session).owned_evidence_ids(
+            user_id,
+            {
+                item
+                for recommendation in result.grounded_recommendations
+                for item in recommendation.evidence_ids
+            },
+        )
+        result.grounded_recommendations = [
+            recommendation.model_copy(
+                update={
+                    "evidence_ids": [
+                        item
+                        for item in recommendation.evidence_ids
+                        if item in owned_evidence_ids
+                        and item in candidate_context.selected_evidence_ids
+                    ]
+                }
+            )
+            for recommendation in result.grounded_recommendations
+        ]
         record = await AssessmentRepository(self.session).create(
-            job_id=job.id, user_id=user_id, job_match_id=match_record.id,
-            provider=provider_name, model=config.model, grade=grade,
-            purpose=f"grade{grade}_" + ("screening" if grade == 1 else "application" if grade == 2 else "interview"),
-            analysis=result, prompt_version=PROMPT_VERSION,
+            job_id=job.id,
+            user_id=user_id,
+            job_match_id=match_record.id,
+            provider=provider_name,
+            model=config.model,
+            grade=grade,
+            purpose=f"grade{grade}_"
+            + ("screening" if grade == 1 else "application" if grade == 2 else "interview"),
+            analysis=result,
+            prompt_version=PROMPT_VERSION,
             input_tokens=usage.get("input_tokens"),
             cached_input_tokens=usage.get("cached_input_tokens"),
             output_tokens=usage.get("output_tokens"),
             reasoning_tokens=usage.get("reasoning_tokens"),
         )
         return AssessmentRead(
-            **result.model_dump(), id=record.id, job_id=record.job_id,
-            job_match_id=record.job_match_id, provider=record.provider,
-            model=record.model, prompt_version=record.prompt_version,
-            input_tokens=record.input_tokens, cached_input_tokens=record.cached_input_tokens,
+            **result.model_dump(),
+            id=record.id,
+            job_id=record.job_id,
+            job_match_id=record.job_match_id,
+            provider=record.provider,
+            model=record.model,
+            prompt_version=record.prompt_version,
+            input_tokens=record.input_tokens,
+            cached_input_tokens=record.cached_input_tokens,
             output_tokens=record.output_tokens,
-            reasoning_tokens=record.reasoning_tokens, purpose=record.purpose,
+            reasoning_tokens=record.reasoning_tokens,
+            purpose=record.purpose,
             created_at=record.created_at,
         )

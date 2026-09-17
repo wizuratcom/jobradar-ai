@@ -15,6 +15,7 @@ from app.integrations.llm.exceptions import (
 from app.integrations.llm.prompt import build_analysis_messages
 from app.modules.analysis.schemas import JobAnalysisResult
 from app.modules.assessment.schemas import AssessmentResult
+from app.modules.candidate.context import CandidateAssessmentContext
 from app.modules.candidate.schemas import CandidateProfile
 from app.modules.imports.ai_prompt import build_extraction_messages
 from app.modules.imports.ai_schemas import AIExtractionResult
@@ -88,7 +89,7 @@ class OpenAICompatibleLLMProvider:
     async def assess_job(
         self,
         job: JobPosting,
-        candidate: CandidateProfile,
+        candidate: CandidateAssessmentContext,
         deterministic_match: MatchResult,
         grade: int,
     ) -> AssessmentResult:
@@ -100,7 +101,9 @@ class OpenAICompatibleLLMProvider:
         if self.reasoning_effort:
             payload["reasoning_effort"] = self.reasoning_effort
         headers = {"Authorization": f"Bearer {self.api_key}"}
-        async with httpx.AsyncClient(timeout=self.timeout_seconds, transport=self.transport) as client:
+        async with httpx.AsyncClient(
+            timeout=self.timeout_seconds, transport=self.transport
+        ) as client:
             response = await self._post_with_retries(client, payload, headers)
         self.last_usage = _usage_from_response(response)
         try:
@@ -118,7 +121,9 @@ class OpenAICompatibleLLMProvider:
         if self.reasoning_effort:
             payload["reasoning_effort"] = self.reasoning_effort
         headers = {"Authorization": f"Bearer {self.api_key}"}
-        async with httpx.AsyncClient(timeout=self.timeout_seconds, transport=self.transport) as client:
+        async with httpx.AsyncClient(
+            timeout=self.timeout_seconds, transport=self.transport
+        ) as client:
             response = await self._post_with_retries(client, payload, headers)
         self.last_usage = _usage_from_response(response)
         try:
@@ -126,7 +131,6 @@ class OpenAICompatibleLLMProvider:
             return AIExtractionResult.model_validate_json(content)
         except (KeyError, IndexError, TypeError, ValueError, ValidationError) as exc:
             raise LLMInvalidResponseError("LLM provider returned invalid extraction JSON.") from exc
-
 
     async def _post_with_retries(
         self,
