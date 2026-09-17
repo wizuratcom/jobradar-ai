@@ -36,5 +36,10 @@ def build_extraction_messages(raw: RawJobData) -> list[dict[str, str]]:
     )
     return [
         {"role": "system", "content": system},
-        {"role": "user", "content": json.dumps({"source": source, "schema": AIExtractionResult.model_json_schema()})},
+        {
+            "role": "user",
+            "content": json.dumps(
+                {"source": source, "schema": AIExtractionResult.model_json_schema()}
+            ),
+        },
     ]

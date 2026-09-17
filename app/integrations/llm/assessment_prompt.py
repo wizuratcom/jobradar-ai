@@ -1,7 +1,7 @@
 import json
 
 from app.modules.assessment.schemas import AssessmentResult
-from app.modules.candidate.schemas import CandidateProfile
+from app.modules.candidate.context import CandidateAssessmentContext
 from app.modules.jobs.models import JobPosting
 from app.modules.matching.schemas import MatchResult
 
@@ -9,7 +9,7 @@ ASSESSMENT_PROMPT_VERSION = "assessment-v1"
 
 
 def build_assessment_messages(
-    job: JobPosting, candidate: CandidateProfile, match: MatchResult, grade: int
+    job: JobPosting, candidate_context: CandidateAssessmentContext, match: MatchResult, grade: int
 ) -> list[dict[str, str]]:
     system = (
         "Assess this vacancy using only the supplied candidate profile, canonical vacancy, "
@@ -18,11 +18,13 @@ def build_assessment_messages(
         "with the vacancy requirements. The deterministic match is an auxiliary, transparent "
         "signal, not ground truth. Never describe the JobRadar score itself as a blocker or "
         "vacancy requirement. Blockers must be actual candidate/vacancy incompatibilities. "
+        "For Grade 2/3, recommendations that assert a candidate fact must cite one or more "
+        "IDs from candidate_evidence in grounded_recommendations. Do not cite nonexistent IDs. "
         "Return only JSON matching the schema. Grade is depth, not permission to fabricate."
     )
     payload = {
         "grade": grade,
-        "candidate_profile": candidate.model_dump(mode="json"),
+        "candidate_context": candidate_context.prompt_payload(),
         "job": {
             "title": job.title,
             "company": job.company,

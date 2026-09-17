@@ -21,7 +21,10 @@ def to_match_read(record: JobMatch) -> JobMatchRead:
         breakdown=record.breakdown,
         matched_core_skills=record.matched_core_skills,
         matched_secondary_skills=record.matched_secondary_skills,
+        matched_stack_skills=record.matched_stack_skills or [],
         missing_skills=record.missing_skills,
+        requirement_explanations=record.requirement_explanations or [],
+        experience_requirements=record.experience_requirements or [],
     )
 
 

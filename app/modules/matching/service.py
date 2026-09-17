@@ -3,7 +3,7 @@ import re
 from app.modules.candidate.schemas import CandidateProfile
 from app.modules.jobs.models import JobPosting
 from app.modules.jobs.normalization import clean_text
-from app.modules.matching.schemas import MatchResult, ScoreBreakdown
+from app.modules.matching.schemas import MatchResult, RequirementExplanation, ScoreBreakdown
 
 
 def normalize_text(value: str) -> str:
@@ -61,7 +61,26 @@ def _candidate_match(required: str, candidate_by_key: dict[str, str]) -> str | N
 
 def _matching_items(required: list[str], candidate_skills: list[str]) -> list[str]:
     candidate_by_normalized = {_skill_key(skill): skill for skill in candidate_skills}
-    return [match for skill in required if (match := _candidate_match(skill, candidate_by_normalized))]
+    return [
+        match for skill in required if (match := _candidate_match(skill, candidate_by_normalized))
+    ]
+
+
+def _candidate_facts(candidate: CandidateProfile) -> tuple[dict[str, str], dict[str, list[int]]]:
+    """Return only explicit user-provided skills/capabilities and their evidence."""
+    values = candidate.core_skills + candidate.secondary_skills
+    by_key = {_skill_key(value): value for value in values}
+    evidence_by_key: dict[str, list[int]] = {}
+    for skill in candidate.skills:
+        value = skill.canonical_name or skill.name
+        key = _skill_key(value)
+        by_key.setdefault(key, skill.name)
+        evidence_by_key[key] = skill.evidence_ids
+    for capability in candidate.capabilities:
+        key = _skill_key(capability.name)
+        by_key.setdefault(key, capability.name)
+        evidence_by_key[key] = capability.evidence_ids
+    return by_key, evidence_by_key
 
 
 def _proportional_score(matches: list[str], available: list[str], weight: int) -> int:
@@ -72,7 +91,9 @@ def _proportional_score(matches: list[str], available: list[str], weight: int) -
 
 def _title_score(title: str, desired_titles: list[str]) -> int:
     job_tokens = _title_tokens(title)
-    return max((_title_similarity(job_tokens, _title_tokens(item)) for item in desired_titles), default=0)
+    return max(
+        (_title_similarity(job_tokens, _title_tokens(item)) for item in desired_titles), default=0
+    )
 
 
 def _title_tokens(value: str) -> set[str]:
@@ -99,7 +120,11 @@ def _title_similarity(job_tokens: set[str], desired_tokens: set[str]) -> int:
     score = 18 if ratio >= 2 / 3 else 12 if ratio >= 1 / 2 else 0
     job_technologies = job_tokens & TITLE_TECHNOLOGIES
     desired_technologies = desired_tokens & TITLE_TECHNOLOGIES
-    if job_technologies and desired_technologies and not job_technologies.intersection(desired_technologies):
+    if (
+        job_technologies
+        and desired_technologies
+        and not job_technologies.intersection(desired_technologies)
+    ):
         score = min(score, 15)
     return score
 
@@ -128,16 +153,37 @@ def recommendation_for(score: int) -> str:
 
 def calculate_match(job: JobPosting, candidate: CandidateProfile) -> MatchResult:
     required_skills = job.required_skills
-    matched_core = _matching_items(required_skills, candidate.core_skills)
-    matched_secondary = _matching_items(required_skills, candidate.secondary_skills)
-    all_candidate_skills = candidate.core_skills + candidate.secondary_skills
-    candidate_by_key = {_skill_key(skill): skill for skill in all_candidate_skills}
+    candidate_by_key, evidence_by_key = _candidate_facts(candidate)
+    legacy_keys = {_skill_key(item) for item in candidate.core_skills + candidate.secondary_skills}
+    rich_only_skills = [
+        item.canonical_name or item.name
+        for item in candidate.skills
+        if _skill_key(item.canonical_name or item.name) not in legacy_keys
+    ]
+    core_values = candidate.core_skills + rich_only_skills + [
+        item.name for item in candidate.capabilities
+    ]
+    matched_core = [
+        match
+        for skill in required_skills
+        if (match := _candidate_match(skill, {_skill_key(item): item for item in core_values}))
+    ]
+    matched_secondary = [
+        match
+        for skill in required_skills
+        if (
+            match := _candidate_match(
+                skill, {_skill_key(item): item for item in candidate.secondary_skills}
+            )
+        )
+    ]
+    all_candidate_skills = list(candidate_by_key.values())
     missing_skills = [
         skill for skill in required_skills if _candidate_match(skill, candidate_by_key) is None
     ]
     breakdown = ScoreBreakdown(
         title=_title_score(job.title, candidate.desired_titles),
-        core_skills=_proportional_score(matched_core, candidate.core_skills, CORE_SKILLS_WEIGHT),
+        core_skills=_proportional_score(matched_core, core_values, CORE_SKILLS_WEIGHT),
         secondary_skills=_proportional_score(
             matched_secondary,
             candidate.secondary_skills,
@@ -151,6 +197,42 @@ def calculate_match(job: JobPosting, candidate: CandidateProfile) -> MatchResult
         location=_location_score(job, candidate),
     )
     score = sum(breakdown.model_dump().values())
+    explanations = [
+        RequirementExplanation(
+            requirement=skill,
+            status="matched"
+            if (matched := _candidate_match(skill, candidate_by_key))
+            else "missing",
+            matched_by=matched,
+            evidence_ids=evidence_by_key.get(_skill_key(matched), []) if matched else [],
+        )
+        for skill in required_skills
+    ]
+    experience_requirements: list[RequirementExplanation] = []
+    if job.required_experience_min_years is not None:
+        requirement = f"{job.required_experience_min_years}+ years" + (
+            f" {job.required_experience_area}"
+            if job.required_experience_area
+            else " relevant experience"
+        )
+        months = candidate.experience.backend_experience_months
+        relevant = bool(
+            candidate.experience.backend_experience_text
+            or candidate.experience.commercial_backend_experience
+        )
+        required_months = job.required_experience_min_years * 12
+        if months is not None and months >= required_months:
+            status = "matched"
+            context = f"confirmed {months // 12} years"
+        elif months is None and relevant:
+            status = "unverified_duration"
+            context = "relevant experience exists but duration is not supplied"
+        else:
+            status = "missing"
+            context = "confirmed duration is below the requirement" if months is not None else None
+        experience_requirements.append(
+            RequirementExplanation(requirement=requirement, status=status, matched_by=context)
+        )
     return MatchResult(
         score=score,
         recommendation=recommendation_for(score),
@@ -159,4 +241,6 @@ def calculate_match(job: JobPosting, candidate: CandidateProfile) -> MatchResult
         matched_secondary_skills=matched_secondary,
         matched_stack_skills=_matching_items(job.stack_skills or [], all_candidate_skills),
         missing_skills=missing_skills,
+        requirement_explanations=explanations,
+        experience_requirements=experience_requirements,
     )

@@ -26,6 +26,14 @@ class Settings(BaseSettings):
     ai_grade1_reasoning: str = "low"
     ai_grade2_reasoning: str = "medium"
     ai_grade3_reasoning: str = "high"
+    candidate_context_grade2_max_projects: int = Field(default=3, ge=0, le=20)
+    candidate_context_grade3_max_projects: int = Field(default=5, ge=0, le=20)
+    candidate_context_grade2_max_evidence: int = Field(default=8, ge=0, le=50)
+    candidate_context_grade3_max_evidence: int = Field(default=15, ge=0, le=50)
+    candidate_context_max_evidence_chars: int = Field(default=400, ge=100, le=4000)
+    candidate_context_max_project_chars: int = Field(default=500, ge=100, le=4000)
+    candidate_context_grade2_max_total_chars: int = Field(default=8000, ge=1000, le=50000)
+    candidate_context_grade3_max_total_chars: int = Field(default=14000, ge=1000, le=50000)
 
     model_config = SettingsConfigDict(
         env_file=".env",

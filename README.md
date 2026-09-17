@@ -21,6 +21,7 @@ No API key is required for deterministic matching or Grade 0 imports.
 - [x] LLM-assisted job analysis
 - [x] Canonical vacancy normalization and provenance
 - [x] Smart vacancy import and graded assessment
+- [x] Rich candidate profiles and evidence-grounded recommendations
 - [ ] Telegram notifications
 - [ ] Automated job-source adapters
 - [ ] Prometheus metrics
@@ -103,6 +104,9 @@ docker compose exec api alembic revision --autogenerate -m "description"
 - `POST /api/v1/auth/register` and `POST /api/v1/auth/login` — create an
   account and obtain a bearer token.
 - `GET` / `PUT /api/v1/me/profile` — read or update the authenticated profile.
+- `GET /api/v1/me/profile/completeness` — show deterministic input completeness.
+- `GET` / `POST /api/v1/me/projects` — manage user-provided project facts.
+- `GET` / `POST /api/v1/me/evidence` — manage user-provided claim evidence.
 - `POST /api/v1/jobs/import` — the normal workflow for text, JSON, or URL
   vacancy imports.
 - `GET /api/v1/jobs/review-list` — review a user's imported vacancies.
@@ -169,6 +173,57 @@ analyses are scoped to the token's user.
 Manage the authenticated profile with `PUT /api/v1/me/profile`. The
 `candidate.example.yaml` file is now documentation/example input only; runtime
 matching reads the database-backed profile.
+
+## Rich candidate profile and evidence
+
+The profile separates concrete technologies from capabilities. A skill is a
+tool such as `Python`, `FastAPI`, or `PostgreSQL`; a capability is an explicit
+claim about what the candidate can do, such as `external_api_integration` or
+`relational_databases`. JobRadar never infers a capability merely because a
+related technology exists in the profile.
+
+Projects and evidence are explicit, authenticated user data. Evidence can be
+linked to a project and has a stable ID. Add evidence only for facts that are
+true; it is the source from which Grade 2/3 may ground CV emphasis, recruiter
+claims, and interview examples. Grade 1 remains vacancy extraction only and
+does not assess the candidate.
+
+Example synthetic profile update:
+
+```json
+{
+  "name": "Example Backend Candidate",
+  "desired_titles": ["Python Backend Developer"],
+  "core_skills": ["Python", "FastAPI", "PostgreSQL"],
+  "preferred_remote": true,
+  "skills": [{"name": "Docker", "level": "practical"}],
+  "capabilities": [
+    {"name": "external_api_integration", "level": "practical"}
+  ],
+  "experience": {
+    "backend_experience_text": "Commercial backend project experience",
+    "backend_experience_months": 36,
+    "commercial_backend_experience": true
+  },
+  "languages": [{"name": "English", "level": "B2"}],
+  "preferred_work_modes": ["remote"]
+}
+```
+
+The completeness endpoint measures whether JobRadar has enough input to make
+useful comparisons. It is not a rating of the candidate. Existing simple
+profiles remain valid: their existing `core_skills` and `secondary_skills` are
+preserved and exposed as metadata-free rich skills.
+
+For Grade 2/3, JobRadar builds a bounded, deterministic candidate context
+instead of sending the full profile history to the model. Grade 2 includes at
+most 3 relevant projects and 8 relevant evidence items (8,000 characters
+total); Grade 3 includes at most 5 projects and 15 evidence items (14,000
+characters total). Evidence is ranked by explicit profile linkage, required
+requirement overlap, preferred overlap, then stack overlap; ties use stable
+IDs. A grounded AI reference is retained only when its evidence belongs to the
+user **and** was included in that assessment context. Grade 1 sends no
+candidate profile, projects, or evidence to AI.
 
 ## Vacancy normalization
 

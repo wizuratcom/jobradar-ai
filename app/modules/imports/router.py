@@ -60,20 +60,28 @@ async def assess_job(
 
 
 @router.get("/{job_id}/review")
-async def review_job(job_id: int, current_user: CurrentUser, session: SessionDependency) -> dict[str, object]:
+async def review_job(
+    job_id: int, current_user: CurrentUser, session: SessionDependency
+) -> dict[str, object]:
     job = await JobRepository(session).get_for_user(job_id, current_user.id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
     match = await session.scalar(
-        select(JobMatch).where(JobMatch.job_id == job_id, JobMatch.user_id == current_user.id).order_by(JobMatch.id.desc())
+        select(JobMatch)
+        .where(JobMatch.job_id == job_id, JobMatch.user_id == current_user.id)
+        .order_by(JobMatch.id.desc())
     )
     assessment = await session.scalar(
-        select(JobAnalysis).where(JobAnalysis.job_id == job_id, JobAnalysis.user_id == current_user.id).order_by(JobAnalysis.id.desc())
+        select(JobAnalysis)
+        .where(JobAnalysis.job_id == job_id, JobAnalysis.user_id == current_user.id)
+        .order_by(JobAnalysis.id.desc())
     )
     source = await session.scalar(select(JobSourceRecord).where(JobSourceRecord.job_id == job_id))
     assessment_data = None
     if assessment and assessment.grade >= 1:
-        assessment_data = AssessmentResult.model_validate(assessment.analysis_payload).model_dump(mode="json")
+        assessment_data = AssessmentResult.model_validate(assessment.analysis_payload).model_dump(
+            mode="json"
+        )
         assessment_data.update(
             {
                 "id": assessment.id,
@@ -98,9 +106,13 @@ async def review_job(job_id: int, current_user: CurrentUser, session: SessionDep
             "preferred_requirements": source.extracted_data.get("preferred_requirements", []),
             "required_experience": source.extracted_data.get("required_experience"),
             "preferred_experience": source.extracted_data.get("preferred_experience"),
-            "required_experience_min_years": source.extracted_data.get("required_experience_min_years"),
+            "required_experience_min_years": source.extracted_data.get(
+                "required_experience_min_years"
+            ),
             "required_experience_area": source.extracted_data.get("required_experience_area"),
-        } if source else None,
+        }
+        if source
+        else None,
         "match": JobMatchRead.model_validate(match).model_dump(mode="json") if match else None,
         "assessment": assessment_data,
     }

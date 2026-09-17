@@ -16,7 +16,14 @@ def _validate_host(host: str) -> None:
         raise URLImportError("Could not resolve vacancy URL host.") from exc
     for address in addresses:
         ip = ipaddress.ip_address(address)
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved or ip.is_unspecified:
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_multicast
+            or ip.is_reserved
+            or ip.is_unspecified
+        ):
             raise URLImportError("Private or reserved URL addresses are not allowed.")
 
 
@@ -36,9 +43,13 @@ async def fetch_public_url(url: str) -> tuple[str, str, str]:
                 current = urljoin(current, location)
                 continue
             if response.status_code >= 400:
-                raise URLImportError("Could not access this vacancy automatically. Paste the vacancy text instead.")
+                raise URLImportError(
+                    "Could not access this vacancy automatically. Paste the vacancy text instead."
+                )
             content_type = response.headers.get("content-type", "").casefold()
-            if not any(value in content_type for value in ("text/html", "application/json", "text/plain")):
+            if not any(
+                value in content_type for value in ("text/html", "application/json", "text/plain")
+            ):
                 raise URLImportError("Vacancy URL returned an unsupported content type.")
             if len(response.content) > 2_000_000:
                 raise URLImportError("Vacancy response is too large.")

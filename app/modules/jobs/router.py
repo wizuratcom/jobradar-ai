@@ -64,42 +64,73 @@ async def review_list(
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> JobReviewListPage:
     latest_match = (
-        select(JobMatch.score).where(JobMatch.job_id == JobPosting.id, JobMatch.user_id == current_user.id)
-        .order_by(JobMatch.id.desc()).limit(1).correlate(JobPosting).scalar_subquery()
+        select(JobMatch.score)
+        .where(JobMatch.job_id == JobPosting.id, JobMatch.user_id == current_user.id)
+        .order_by(JobMatch.id.desc())
+        .limit(1)
+        .correlate(JobPosting)
+        .scalar_subquery()
     )
     latest_ai = (
-        select(JobAnalysis.fit_score).where(JobAnalysis.job_id == JobPosting.id, JobAnalysis.user_id == current_user.id)
-        .order_by(JobAnalysis.id.desc()).limit(1).correlate(JobPosting).scalar_subquery()
+        select(JobAnalysis.fit_score)
+        .where(JobAnalysis.job_id == JobPosting.id, JobAnalysis.user_id == current_user.id)
+        .order_by(JobAnalysis.id.desc())
+        .limit(1)
+        .correlate(JobPosting)
+        .scalar_subquery()
     )
-    query = select(JobPosting, UserJob).join(UserJob, UserJob.job_id == JobPosting.id).where(UserJob.user_id == current_user.id)
+    query = (
+        select(JobPosting, UserJob)
+        .join(UserJob, UserJob.job_id == JobPosting.id)
+        .where(UserJob.user_id == current_user.id)
+    )
     if sort == "score_desc":
-        query = query.order_by(func.coalesce(latest_ai, latest_match).desc(), UserJob.created_at.desc())
+        query = query.order_by(
+            func.coalesce(latest_ai, latest_match).desc(), UserJob.created_at.desc()
+        )
     else:
         query = query.order_by(UserJob.created_at.desc())
     rows = (await session.execute(query.limit(limit).offset(offset))).all()
-    total = await session.scalar(select(func.count()).select_from(UserJob).where(UserJob.user_id == current_user.id))
+    total = await session.scalar(
+        select(func.count()).select_from(UserJob).where(UserJob.user_id == current_user.id)
+    )
     items: list[JobReviewListItem] = []
     for job, user_job in rows:
-        match = await session.scalar(select(JobMatch).where(JobMatch.job_id == job.id, JobMatch.user_id == current_user.id).order_by(JobMatch.id.desc()))
-        analysis = await session.scalar(select(JobAnalysis).where(JobAnalysis.job_id == job.id, JobAnalysis.user_id == current_user.id).order_by(JobAnalysis.id.desc()))
+        match = await session.scalar(
+            select(JobMatch)
+            .where(JobMatch.job_id == job.id, JobMatch.user_id == current_user.id)
+            .order_by(JobMatch.id.desc())
+        )
+        analysis = await session.scalar(
+            select(JobAnalysis)
+            .where(JobAnalysis.job_id == job.id, JobAnalysis.user_id == current_user.id)
+            .order_by(JobAnalysis.id.desc())
+        )
         payload = analysis.analysis_payload if analysis else {}
         salary = None
         if job.salary_min is not None:
             upper = f"-{job.salary_max}" if job.salary_max is not None else ""
             salary = f"{job.salary_min}{upper} {job.salary_currency or ''} {job.salary_period or ''}".strip()
-        items.append(JobReviewListItem(
-            job_id=job.id, title=job.title, company=job.company, location_text=job.location_text,
-            work_mode=job.work_mode, salary_summary=salary,
-            deterministic_score=match.score if match else None,
-            deterministic_recommendation=match.recommendation if match else None,
-            latest_assessment_grade=analysis.grade if analysis else None,
-            ai_fit_score=analysis.fit_score if analysis else None,
-            ai_verdict=analysis.recommendation if analysis else None,
-            matched_required_count=len(payload.get("required_matched", [])),
-            missing_required_count=len(payload.get("required_missing", [])),
-            preferred_gap_count=len(payload.get("preferred_missing", [])),
-            blocker_count=len(payload.get("blockers", [])), imported_at=user_job.created_at,
-        ))
+        items.append(
+            JobReviewListItem(
+                job_id=job.id,
+                title=job.title,
+                company=job.company,
+                location_text=job.location_text,
+                work_mode=job.work_mode,
+                salary_summary=salary,
+                deterministic_score=match.score if match else None,
+                deterministic_recommendation=match.recommendation if match else None,
+                latest_assessment_grade=analysis.grade if analysis else None,
+                ai_fit_score=analysis.fit_score if analysis else None,
+                ai_verdict=analysis.recommendation if analysis else None,
+                matched_required_count=len(payload.get("required_matched", [])),
+                missing_required_count=len(payload.get("required_missing", [])),
+                preferred_gap_count=len(payload.get("preferred_missing", [])),
+                blocker_count=len(payload.get("blockers", [])),
+                imported_at=user_job.created_at,
+            )
+        )
     return JobReviewListPage(items=items, total=total or 0, limit=limit, offset=offset)
 
 

@@ -40,6 +40,8 @@ class JobPosting(Base):
     required_skills: Mapped[list[str]] = mapped_column(JSON, default=list)
     preferred_skills: Mapped[list[str]] = mapped_column(JSON, default=list)
     stack_skills: Mapped[list[str]] = mapped_column(JSON, default=list)
+    required_experience_min_years: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    required_experience_area: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

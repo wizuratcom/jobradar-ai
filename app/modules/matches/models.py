@@ -27,5 +27,11 @@ class JobMatch(Base):
     matched_secondary_skills: Mapped[list[str]] = mapped_column(json_type)
     matched_stack_skills: Mapped[list[str]] = mapped_column(json_type, default=list)
     missing_skills: Mapped[list[str]] = mapped_column(json_type)
+    requirement_explanations: Mapped[list[dict[str, object]]] = mapped_column(
+        json_type, default=list
+    )
+    experience_requirements: Mapped[list[dict[str, object]]] = mapped_column(
+        json_type, default=list
+    )
     candidate_profile_snapshot: Mapped[dict[str, object]] = mapped_column(json_type)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

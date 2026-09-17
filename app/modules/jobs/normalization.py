@@ -63,6 +63,8 @@ class CanonicalJobData:
     required_skills: list[str]
     preferred_skills: list[str]
     stack_skills: list[str]
+    required_experience_min_years: int | None
+    required_experience_area: str | None
 
 
 @dataclass(frozen=True)
@@ -134,9 +136,7 @@ def normalize_salary(
     # 2,50 may be a decimal amount), so do not guess.
     if re.search(r"\d+,\d{1,2}(?!\d)", text):
         return None, None, None, None, None
-    numbers = re.findall(
-        r"\d{1,3}(?:[,\s]\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?\s*k?", text
-    )
+    numbers = re.findall(r"\d{1,3}(?:[,\s]\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?\s*k?", text)
     if not currency or not numbers or len(numbers) > 2:
         return None, None, None, None, None
 
@@ -173,8 +173,11 @@ class JobNormalizer:
             normalize_salary(raw.raw_salary)
             if raw.raw_salary
             else normalize_structured_salary(
-                raw.raw_salary_min, raw.raw_salary_max, raw.raw_salary_currency,
-                raw.raw_salary_period, raw.raw_salary_gross,
+                raw.raw_salary_min,
+                raw.raw_salary_max,
+                raw.raw_salary_currency,
+                raw.raw_salary_period,
+                raw.raw_salary_gross,
             )
         )
         warnings: list[str] = []
@@ -205,6 +208,12 @@ class JobNormalizer:
                 required_skills=normalize_skills(raw.raw_required_skills),
                 preferred_skills=normalize_skills(raw.raw_preferred_skills),
                 stack_skills=normalize_skills(raw.raw_stack_skills),
+                required_experience_min_years=raw.raw_required_experience_min_years,
+                required_experience_area=(
+                    clean_text(raw.raw_required_experience_area)
+                    if raw.raw_required_experience_area
+                    else None
+                ),
             ),
             warnings=warnings,
         )

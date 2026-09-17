@@ -12,6 +12,13 @@ class ScoreBreakdown(BaseModel):
     location: int = Field(ge=0, le=15)
 
 
+class RequirementExplanation(BaseModel):
+    requirement: str
+    status: Literal["matched", "unverified_duration", "missing"]
+    matched_by: str | None = None
+    evidence_ids: list[int] = Field(default_factory=list)
+
+
 class MatchResult(BaseModel):
     score: int = Field(ge=0, le=100)
     recommendation: Literal["strong_apply", "apply", "maybe", "skip"]
@@ -20,3 +27,5 @@ class MatchResult(BaseModel):
     matched_secondary_skills: list[str]
     matched_stack_skills: list[str] = Field(default_factory=list)
     missing_skills: list[str]
+    requirement_explanations: list[RequirementExplanation] = Field(default_factory=list)
+    experience_requirements: list[RequirementExplanation] = Field(default_factory=list)
