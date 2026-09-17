@@ -2,11 +2,13 @@ import httpx
 import pytest
 from sqlalchemy import select
 
+from app.core.config import Settings
 from app.core.database import SessionLocal, init_test_database
 from app.integrations.llm.assessment_prompt import build_assessment_messages
 from app.main import app
 from app.modules.assessment.config import GradeConfig
 from app.modules.assessment.service import fake_assessment
+from app.modules.candidate.context import CandidateContextBuilder
 from app.modules.candidate.schemas import CandidateProfile
 from app.modules.imports import router as imports_router
 from app.modules.imports.ai_models import AIExtraction
@@ -74,7 +76,14 @@ def test_fake_assessment_supports_assessment_grades_without_fabrication() -> Non
     candidate = CandidateProfile(
         name="Candidate", desired_titles=["Backend Engineer"], core_skills=["Python"]
     )
-    job = JobPosting(company="Acme", title="Backend Engineer", description="Build APIs", work_mode="remote", required_skills=["Python", "Redis"], preferred_skills=[])
+    job = JobPosting(
+        company="Acme",
+        title="Backend Engineer",
+        description="Build APIs",
+        work_mode="remote",
+        required_skills=["Python", "Redis"],
+        preferred_skills=[],
+    )
     match = calculate_match(job, candidate)
     for grade in (2, 3):
         result = fake_assessment(job, candidate, match, GradeConfig(grade, "fake", "low"))
@@ -90,7 +99,15 @@ def test_grade_two_prompt_treats_deterministic_match_as_auxiliary() -> None:
     job = JobPosting(
         company="Acme", title="Backend Engineer", description="Build APIs", required_skills=[]
     )
-    prompt = build_assessment_messages(job, candidate, calculate_match(job, candidate), grade=2)
+    context = CandidateContextBuilder(Settings()).build(
+        profile=candidate,
+        projects=[],
+        evidence=[],
+        job=job,
+        match=calculate_match(job, candidate),
+        grade=2,
+    )
+    prompt = build_assessment_messages(job, context, calculate_match(job, candidate), grade=2)
     assert "auxiliary, transparent signal, not ground truth" in prompt[0]["content"]
     assert "Never describe the JobRadar score itself as a blocker" in prompt[0]["content"]
 
@@ -145,11 +162,17 @@ async def test_grade_one_import_creates_extraction_without_assessment(
     await init_test_database()
     from app.core.config import Settings
 
-    monkeypatch.setattr(imports_router, "get_settings", lambda: Settings(llm_enabled=True, llm_provider="fake"))
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+    monkeypatch.setattr(
+        imports_router, "get_settings", lambda: Settings(llm_enabled=True, llm_provider="fake")
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
         headers = await authenticated_headers(client, "smart-import@example.com")
         profile = {**PROFILE, "secondary_skills": ["AWS"]}
-        assert (await client.put("/api/v1/me/profile", json=profile, headers=headers)).status_code == 200
+        assert (
+            await client.put("/api/v1/me/profile", json=profile, headers=headers)
+        ).status_code == 200
         response = await client.post(
             "/api/v1/jobs/import",
             headers=headers,
@@ -186,9 +209,13 @@ async def test_grade_two_import_creates_assessment_after_enrichment(
     monkeypatch.setattr(
         imports_router, "get_settings", lambda: Settings(llm_enabled=True, llm_provider="fake")
     )
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
         headers = await authenticated_headers(client, "grade-two@example.com")
-        assert (await client.put("/api/v1/me/profile", json=PROFILE, headers=headers)).status_code == 200
+        assert (
+            await client.put("/api/v1/me/profile", json=PROFILE, headers=headers)
+        ).status_code == 200
         response = await client.post(
             "/api/v1/jobs/import",
             headers=headers,
@@ -217,12 +244,20 @@ async def test_real_smoke_shape_regression_uses_canonical_semantics(
         "are required. AWS is a plus. At least 3 years of commercial backend experience is required. "
         "The role is fully remote. Salary: €2,000-2,800 gross per month."
     )
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
         headers = await authenticated_headers(client, "smoke-shape@example.com")
-        profile = {**PROFILE, "desired_titles": ["Python Backend Developer"], "secondary_skills": ["AWS"]}
+        profile = {
+            **PROFILE,
+            "desired_titles": ["Python Backend Developer"],
+            "secondary_skills": ["AWS"],
+        }
         await client.put("/api/v1/me/profile", json=profile, headers=headers)
         response = await client.post(
-            "/api/v1/jobs/import", headers=headers, json={"input_type": "text", "grade": 1, "text": text}
+            "/api/v1/jobs/import",
+            headers=headers,
+            json={"input_type": "text", "grade": 1, "text": text},
         )
         body = response.json()
         review = await client.get(f"/api/v1/jobs/{body['job']['id']}/review", headers=headers)
@@ -254,7 +289,9 @@ Required: Python 3.13, HTTP(S), REST, Реляционные СУБД, Инте�
 Preferred: chatbot development, AI / LLM API integration, Kafka
 Опыт backend-разработки от 1 года
 Work conditions: офис/удаленно"""
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
         headers = await authenticated_headers(client, "russian-grade-one@example.com")
         await client.put(
             "/api/v1/me/profile",
@@ -278,11 +315,14 @@ Work conditions: офис/удаленно"""
     assert body["job"]["remote_allowed"] is True
     assert body["job"]["work_mode"] == "hybrid"
     assert body["job"]["stack_skills"] == [
-        "FastAPI", "PostgreSQL", "Redis", "Docker", "Kafka", "AI API"
+        "FastAPI",
+        "PostgreSQL",
+        "Redis",
+        "Docker",
+        "Kafka",
+        "AI API",
     ]
-    assert {"PostgreSQL", "FastAPI", "Docker"}.issubset(
-        set(body["match"]["matched_stack_skills"])
-    )
+    assert {"PostgreSQL", "FastAPI", "Docker"}.issubset(set(body["match"]["matched_stack_skills"]))
     assert "Kafka" not in body["match"]["missing_skills"]
     assert body["match"]["breakdown"]["stack_skills"] == 5
     assert body["match"]["score"] == 59
