@@ -7,6 +7,8 @@ JWT bearer authentication resolves the current user before private queries.
 ```text
 Client -> JWT -> Current User
                     |- CandidateProfile
+                    |    |- CandidateProject
+                    |    `- CandidateEvidence
                     |- UserJob -> JobPosting
                     |- JobMatch (profile snapshot)
                     `- JobAnalysis -> JobMatch
@@ -15,6 +17,31 @@ Client -> JWT -> Current User
 Matches are immutable history records. Editing a profile affects only future
 matches; the stored snapshot explains an earlier score. Analyses create a fresh
 match and link to it, so their deterministic context is preserved.
+
+## Rich profile grounding
+
+CandidateProfile retains legacy skill lists for compatibility and adds
+structured skills, explicit controlled capabilities, experience facts,
+languages, and target/work preferences. `CandidateProject` and
+`CandidateEvidence` are separate user-owned records with stable IDs. Evidence
+is created only from user-provided data; AI never creates it.
+
+The matcher consumes explicit skills and capabilities, then emits compact
+requirement explanations with the exact matching fact and any linked evidence
+IDs. Numeric experience requirements are reported as `matched`,
+`unverified_duration`, or `missing`; unknown duration never satisfies a
+numeric requirement.
+
+Grade 2/3 receive candidate facts separately from recommendations. Their
+grounded recommendation references are filtered against evidence owned by the
+authenticated user before persistence. Grade 1 remains extraction only.
+
+`CandidateContextBuilder` bounds Grade 2/3 model input. It selects only facts
+relevant to canonical required/preferred/stack skills and capabilities, then
+adds compact projects and evidence using deterministic overlap ranking. Grade
+2 is limited to 3 projects, 8 evidence items, and 8,000 characters; Grade 3 is
+limited to 5 projects, 15 evidence items, and 14,000 characters. An evidence
+reference must be both user-owned and present in that selected context.
 
 ## Vacancy normalization
 
