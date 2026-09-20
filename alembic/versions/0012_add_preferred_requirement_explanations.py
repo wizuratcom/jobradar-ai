@@ -1,6 +1,6 @@
 """Persist preferred requirement explanations for vacancy-oriented matching.
 
-Revision ID: 0012_add_preferred_requirement_explanations
+Revision ID: 0012_preferred_requirement_expl
 Revises: 0011_add_rich_candidate_profile
 """
 
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
-revision: str = "0012_add_preferred_requirement_explanations"
+revision: str = "0012_preferred_requirement_expl"
 down_revision: str | Sequence[str] | None = "0011_add_rich_candidate_profile"
 branch_labels = None
 depends_on = None
