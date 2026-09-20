@@ -139,7 +139,7 @@ class CandidateContextBuilder:
                 "candidate_evidence": selected_evidence + [value]
                 if "evidence_type" in value
                 else selected_evidence,
-                "candidate_requirement_gaps": match.missing_skills,
+                "candidate_requirement_gaps": match.missing_required_requirements,
             }
             return len(json.dumps(trial, ensure_ascii=False, default=str)) <= total_limit
 
@@ -159,14 +159,14 @@ class CandidateContextBuilder:
             "candidate_facts": candidate_facts,
             "candidate_projects": selected_projects,
             "candidate_evidence": selected_evidence,
-            "candidate_requirement_gaps": match.missing_skills,
+            "candidate_requirement_gaps": match.missing_required_requirements,
         }
         return CandidateAssessmentContext(
             grade=grade,
             candidate_facts=candidate_facts,
             projects=selected_projects,
             evidence=selected_evidence,
-            missing_requirements=match.missing_skills,
+            missing_requirements=match.missing_required_requirements,
             selected_evidence_ids={
                 item["id"] for item in selected_evidence if isinstance(item.get("id"), int)
             },

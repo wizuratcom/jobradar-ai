@@ -84,10 +84,13 @@ def merge_extraction(raw: RawJobData, extracted: AIExtractionResult) -> RawJobDa
         raw_description=raw.raw_description or extracted.description or "",
         application_url=raw.application_url or extracted.application_url,
         raw_location=raw.raw_location or extracted.location,
+        # Deterministic source extraction is authoritative when it found an
+        # explicit arrangement. AI enrichment may fill an absent value but
+        # must not reinterpret "office / remote" as hybrid.
         raw_work_mode=(
-            extracted.work_mode
-            if extracted.work_mode and extracted.work_mode != "unknown"
-            else raw.raw_work_mode
+            raw.raw_work_mode
+            if raw.raw_work_mode is not None
+            else extracted.work_mode
         ),
         raw_employment_type=raw.raw_employment_type,
         raw_salary=extracted.raw_salary or raw.raw_salary,

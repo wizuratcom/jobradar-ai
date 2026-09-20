@@ -82,9 +82,14 @@ async def test_job_api_workflow_and_validation() -> None:
         match = await client.post(f"/api/v1/jobs/{job_id}/match", headers=headers)
         assert match.status_code == 201
         assert match.json()["breakdown"]["title"] == 25
-        assert match.json()["matched_core_skills"] == ["Python", "FastAPI", "PostgreSQL"]
-        assert match.json()["matched_secondary_skills"] == ["Docker"]
-        assert match.json()["missing_skills"] == ["Redis"]
+        assert match.json()["matched_required_requirements"] == [
+            "Python",
+            "FastAPI",
+            "PostgreSQL",
+            "Docker",
+        ]
+        assert match.json()["matched_preferred_requirements"] == []
+        assert match.json()["missing_required_requirements"] == ["Redis"]
 
         invalid = await client.post("/api/v1/jobs", json={"company": "Acme"}, headers=headers)
         assert invalid.status_code == 422

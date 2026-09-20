@@ -106,8 +106,12 @@ def normalize_work_arrangement(value: str | bool | None) -> tuple[WorkMode, bool
         or "офис" in normalized
     )
     hybrid = "hybrid" in normalized or "гибрид" in normalized
-    if hybrid or (remote and onsite):
-        return "hybrid", remote or hybrid, onsite or hybrid, hybrid
+    if hybrid:
+        return "hybrid", True, True, True
+    # "office / remote" exposes two alternatives, not a hybrid arrangement.
+    # The flags retain the useful source fact; one scalar work_mode cannot.
+    if remote and onsite:
+        return "unknown", True, True, False
     if remote:
         return "remote", True, False, False
     if onsite:

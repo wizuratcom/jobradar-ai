@@ -32,6 +32,12 @@ IDs. Numeric experience requirements are reported as `matched`,
 `unverified_duration`, or `missing`; unknown duration never satisfies a
 numeric requirement.
 
+Its deterministic score is vacancy-oriented: title (25), required requirements
+(35), preferred requirements (15), positive-only stack relevance (10), and
+location/work-mode compatibility (15). Required coverage includes structured
+numeric experience when present. Preferred gaps are not blockers, and extra
+unmatched stack technologies cannot reduce an already earned stack bonus.
+
 Grade 2/3 receive candidate facts separately from recommendations. Their
 grounded recommendation references are filtered against evidence owned by the
 authenticated user before persistence. Grade 1 remains extraction only.

@@ -313,7 +313,8 @@ Work conditions: офис/удаленно"""
     assert response.status_code == 201
     assert body["assessment"] is None
     assert body["job"]["remote_allowed"] is True
-    assert body["job"]["work_mode"] == "hybrid"
+    assert body["job"]["work_mode"] == "unknown"
+    assert body["job"]["hybrid_allowed"] is False
     assert body["job"]["stack_skills"] == [
         "FastAPI",
         "PostgreSQL",
@@ -323,9 +324,9 @@ Work conditions: офис/удаленно"""
         "AI API",
     ]
     assert {"PostgreSQL", "FastAPI", "Docker"}.issubset(set(body["match"]["matched_stack_skills"]))
-    assert "Kafka" not in body["match"]["missing_skills"]
-    assert body["match"]["breakdown"]["stack_skills"] == 5
-    assert body["match"]["score"] == 59
+    assert "Kafka" not in body["match"]["missing_required_requirements"]
+    assert body["match"]["breakdown"]["stack_skills"] == 9
+    assert body["match"]["score"] == 61
     assert review.json()["source"]["required_experience_min_years"] == 1
     assert review.json()["source"]["required_experience_area"] == "backend-разработки"
     async with SessionLocal() as session:
