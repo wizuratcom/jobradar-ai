@@ -101,11 +101,11 @@ def test_rich_capabilities_and_experience_matching_are_explicit() -> None:
         required_experience_area="backend development",
     )
     result = calculate_match(job, profile)
-    assert result.missing_skills == []
+    assert result.missing_required_requirements == []
     assert result.matched_stack_skills == ["FastAPI", "AWS S3"]
     assert result.experience_requirements[0].status == "unverified_duration"
-    assert result.requirement_explanations[1].matched_by == "PostgreSQL"
-    assert result.requirement_explanations[2].matched_by == "external_api_integration"
+    assert result.required_requirement_explanations[1].matched_by == "PostgreSQL"
+    assert result.required_requirement_explanations[2].matched_by == "external_api_integration"
 
 
 def test_confirmed_experience_does_not_overclaim() -> None:
@@ -125,6 +125,102 @@ def test_confirmed_experience_does_not_overclaim() -> None:
     )
     assert calculate_match(job, one_year).experience_requirements[0].status == "missing"
     assert calculate_match(job, three_years).experience_requirements[0].status == "matched"
+
+
+def test_tetrika_style_requirements_use_explicit_capabilities_and_positive_stack_bonus() -> None:
+    profile = CandidateProfile.model_validate(
+        {
+            **RICH_PROFILE,
+            "core_skills": ["Python", "FastAPI", "PostgreSQL", "Docker"],
+            "secondary_skills": [],
+            "capabilities": [
+                {"name": "relational_databases", "evidence_ids": [1, 2, 3, 4]},
+                {"name": "external_api_integration", "evidence_ids": [5]},
+                {"name": "rest_api_development", "evidence_ids": [6]},
+                {"name": "llm_integration", "evidence_ids": [7]},
+            ],
+            "experience": {
+                "backend_experience_text": "Backend project experience.",
+                "backend_experience_months": 6,
+            },
+        }
+    )
+    requirements = [
+        "Python 3.13",
+        "HTTP(S)",
+        "REST",
+        "Реляционные СУБД",
+        "Интеграция с внешними API",
+    ]
+    base_stack = ["Python", "FastAPI", "PostgreSQL", "Docker"]
+    job = JobPosting(
+        company="Example",
+        title="Backend Developer Python (junior)",
+        description="Office or remote.",
+        work_mode="unknown",
+        remote_allowed=True,
+        onsite_allowed=True,
+        hybrid_allowed=False,
+        required_skills=requirements,
+        preferred_skills=["chatbot development", "LLM API integration", "Kafka"],
+        stack_skills=base_stack + ["Redis", "Kafka", "MAX", "VK", "Bitrix", "AI API"],
+        required_experience_min_years=1,
+        required_experience_area="backend development",
+    )
+    result = calculate_match(job, profile)
+    base_job = JobPosting(
+        company="Example",
+        title=job.title,
+        description=job.description,
+        work_mode="unknown",
+        remote_allowed=True,
+        onsite_allowed=True,
+        hybrid_allowed=False,
+        required_skills=requirements,
+        preferred_skills=["chatbot development", "LLM API integration", "Kafka"],
+        stack_skills=base_stack,
+        required_experience_min_years=1,
+        required_experience_area="backend development",
+    )
+    base_result = calculate_match(base_job, profile)
+
+    assert result.matched_required_requirements == [
+        "Python",
+        "rest_api_development",
+        "relational_databases",
+        "external_api_integration",
+    ]
+    assert result.missing_required_requirements == ["HTTP(S)"]
+    assert result.breakdown.required_requirements == 23
+    assert result.breakdown.preferred_requirements == 5
+    assert result.breakdown.stack_skills == 10
+    assert result.breakdown.stack_skills >= base_result.breakdown.stack_skills
+    assert result.score == 78
+    assert result.matched_preferred_requirements == ["llm_integration"]
+    assert result.missing_preferred_requirements == ["chatbot development", "Kafka"]
+    assert result.experience_requirements[0].status == "missing"
+    assert result.experience_requirements[0].matched_by == "confirmed duration is below the requirement"
+    assert result.required_requirement_explanations[1].status == "missing"
+    assert result.required_requirement_explanations[2].matched_by == "rest_api_development"
+    assert result.required_requirement_explanations[3].matched_by == "relational_databases"
+    assert result.required_requirement_explanations[4].matched_by == "external_api_integration"
+    assert len(result.required_requirement_explanations[3].evidence_ids) == 3
+
+
+def test_http_requirement_requires_explicit_http_capability() -> None:
+    job = JobPosting(
+        company="Example",
+        title="Backend Developer",
+        description="",
+        required_skills=["HTTP(S)"],
+    )
+    no_http = CandidateProfile.model_validate({**RICH_PROFILE, "capabilities": []})
+    explicit_http = CandidateProfile.model_validate(
+        {**RICH_PROFILE, "capabilities": [{"name": "http", "evidence_ids": [7]}]}
+    )
+    assert calculate_match(job, no_http).missing_required_requirements == ["HTTP(S)"]
+    assert calculate_match(job, explicit_http).missing_required_requirements == []
+    assert calculate_match(job, explicit_http).required_requirement_explanations[0].matched_by == "http"
 
 
 @pytest.mark.asyncio

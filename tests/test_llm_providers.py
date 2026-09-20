@@ -74,7 +74,7 @@ async def test_fake_provider_returns_grounded_structured_analysis() -> None:
         profile,
         calculate_match(vacancy, profile),
     )
-    assert result.recommendation == "strong_apply"
+    assert result.recommendation == "apply"
     assert result.gaps == ["Redis"]
     assert "years" not in result.recruiter_message.casefold()
 

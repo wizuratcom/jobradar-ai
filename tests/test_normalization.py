@@ -116,8 +116,8 @@ def test_work_mode_normalization(raw_value: str, expected: str) -> None:
 
 
 def test_office_or_remote_preserves_remote_availability() -> None:
-    assert normalize_work_arrangement("офис/удаленно") == ("hybrid", True, True, False)
-    assert normalize_work_arrangement("office / remote") == ("hybrid", True, True, False)
+    assert normalize_work_arrangement("офис/удаленно") == ("unknown", True, True, False)
+    assert normalize_work_arrangement("office / remote") == ("unknown", True, True, False)
 
 
 def test_explicit_hybrid_is_distinct_from_separate_office_and_remote_options() -> None:
