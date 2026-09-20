@@ -386,11 +386,13 @@ office city alone does not penalize a candidate who prefers remote work.
 separate office and remote options keep it false while preserving both
 availability flags.
 
-The deterministic score is transparent and bounded to 100: title relevance
-(25), matching core requirements (35), matching secondary requirements (15),
-matching explicitly mentioned stack technologies (10), and location/work-mode
-compatibility (15). Stack overlap raises confidence but technologies found only
-in the stack never become hard missing requirements.
+The deterministic score is vacancy-oriented, transparent, and bounded to 100:
+title relevance (25), required requirements (35), preferred requirements (15),
+stack relevance (10), and location/work-mode compatibility (15). Required
+coverage includes explicit required skills/capabilities plus a structured
+numeric experience requirement when present. Preferred gaps are not required
+blockers. Stack overlap is a positive-only bonus: unmatched stack technologies
+never lower points already earned and never become hard missing requirements.
 
 Salary normalization supports deterministic, unambiguous forms including
 `€2,000-2,800`, `$3,500-$5,000`, `2500 EUR`, and `€2k-2.8k`. Ambiguous forms
