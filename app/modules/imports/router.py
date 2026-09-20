@@ -17,7 +17,7 @@ from app.modules.jobs.models import JobSourceRecord
 from app.modules.jobs.repository import JobRepository
 from app.modules.jobs.schemas import JobRead
 from app.modules.matches.models import JobMatch
-from app.modules.matches.schemas import JobMatchRead
+from app.modules.matches.service import to_match_read
 from app.modules.users.dependencies import CurrentUser
 
 router = APIRouter(prefix="/api/v1/jobs", tags=["smart import"])
@@ -113,6 +113,6 @@ async def review_job(
         }
         if source
         else None,
-        "match": JobMatchRead.model_validate(match).model_dump(mode="json") if match else None,
+            "match": to_match_read(match).model_dump(mode="json") if match else None,
         "assessment": assessment_data,
     }

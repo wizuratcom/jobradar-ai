@@ -18,12 +18,24 @@ class JobMatchRepository:
         profile_snapshot: dict[str, object],
         result: MatchResult,
     ) -> JobMatch:
+        payload = result.model_dump(mode="json")
         record = JobMatch(
             user_id=user_id,
             job_id=job_id,
             candidate_profile_id=profile_id,
             candidate_profile_snapshot=profile_snapshot,
-            **result.model_dump(mode="json"),
+            score=payload["score"],
+            recommendation=payload["recommendation"],
+            breakdown=payload["breakdown"],
+            # Keep pre-v0.7.1 storage columns readable while public API fields
+            # describe vacancy-oriented requirement semantics.
+            matched_core_skills=payload["matched_required_requirements"],
+            matched_secondary_skills=payload["matched_preferred_requirements"],
+            matched_stack_skills=payload["matched_stack_skills"],
+            missing_skills=payload["missing_required_requirements"],
+            requirement_explanations=payload["required_requirement_explanations"],
+            preferred_requirement_explanations=payload["preferred_requirement_explanations"],
+            experience_requirements=payload["experience_requirements"],
         )
         self.session.add(record)
         await self.session.commit()

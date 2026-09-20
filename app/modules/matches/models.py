@@ -30,6 +30,9 @@ class JobMatch(Base):
     requirement_explanations: Mapped[list[dict[str, object]]] = mapped_column(
         json_type, default=list
     )
+    preferred_requirement_explanations: Mapped[list[dict[str, object]]] = mapped_column(
+        json_type, default=list
+    )
     experience_requirements: Mapped[list[dict[str, object]]] = mapped_column(
         json_type, default=list
     )

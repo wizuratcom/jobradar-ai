@@ -10,8 +10,8 @@ PROMPT_VERSION = "assessment-v1"
 def fake_assessment(
     job: JobPosting, candidate: CandidateProfile, match: MatchResult, config: GradeConfig
 ) -> AssessmentResult:
-    missing = match.missing_skills
-    matched = match.matched_core_skills + match.matched_secondary_skills
+    missing = match.missing_required_requirements
+    matched = match.matched_required_requirements + match.matched_preferred_requirements
     candidate_skills = {
         skill.casefold() for skill in candidate.core_skills + candidate.secondary_skills
     }

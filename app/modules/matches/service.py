@@ -6,25 +6,44 @@ from app.modules.jobs.models import JobPosting
 from app.modules.matches.models import JobMatch
 from app.modules.matches.repository import JobMatchRepository
 from app.modules.matches.schemas import JobMatchRead
+from app.modules.matching.schemas import MatchResult
 from app.modules.matching.service import calculate_match
 
 
+def to_match_result(record: JobMatch) -> MatchResult:
+    breakdown = dict(record.breakdown)
+    if "required_requirements" not in breakdown:
+        breakdown = {
+            "title": breakdown.get("title", 0),
+            "required_requirements": breakdown.get("core_skills", 0),
+            "preferred_requirements": breakdown.get("secondary_skills", 0),
+            "stack_skills": breakdown.get("stack_skills", 0),
+            "location": breakdown.get("location", 0),
+        }
+    return MatchResult(
+        score=record.score,
+        recommendation=record.recommendation,
+        breakdown=breakdown,
+        matched_required_requirements=record.matched_core_skills,
+        matched_preferred_requirements=record.matched_secondary_skills,
+        matched_stack_skills=record.matched_stack_skills or [],
+        missing_required_requirements=record.missing_skills,
+        missing_preferred_requirements=[],
+        required_requirement_explanations=record.requirement_explanations or [],
+        preferred_requirement_explanations=record.preferred_requirement_explanations or [],
+        experience_requirements=record.experience_requirements or [],
+    )
+
+
 def to_match_read(record: JobMatch) -> JobMatchRead:
+    result = to_match_result(record)
     return JobMatchRead(
         id=record.id,
         job_id=record.job_id,
         candidate_profile_id=record.candidate_profile_id,
         candidate_profile_snapshot=record.candidate_profile_snapshot,
         created_at=record.created_at,
-        score=record.score,
-        recommendation=record.recommendation,
-        breakdown=record.breakdown,
-        matched_core_skills=record.matched_core_skills,
-        matched_secondary_skills=record.matched_secondary_skills,
-        matched_stack_skills=record.matched_stack_skills or [],
-        missing_skills=record.missing_skills,
-        requirement_explanations=record.requirement_explanations or [],
-        experience_requirements=record.experience_requirements or [],
+        **result.model_dump(),
     )
 
 

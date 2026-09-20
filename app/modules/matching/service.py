@@ -11,8 +11,8 @@ def normalize_text(value: str) -> str:
 
 
 TITLE_WEIGHT = 25
-CORE_SKILLS_WEIGHT = 35
-SECONDARY_SKILLS_WEIGHT = 15
+REQUIRED_REQUIREMENTS_WEIGHT = 35
+PREFERRED_REQUIREMENTS_WEIGHT = 15
 STACK_SKILLS_WEIGHT = 10
 LOCATION_WEIGHT = 15
 TITLE_STOP_WORDS = {"senior", "junior", "lead", "staff", "principal", "the", "a", "an"}
@@ -21,6 +21,8 @@ TITLE_DOMAINS = {"backend", "frontend", "data", "devops", "mobile"}
 TITLE_TECHNOLOGIES = {"python", "java", "javascript", "typescript", "golang", "ruby", "php"}
 SKILL_ALIASES = {"postgres": "postgresql"}
 CAPABILITY_SATISFIERS = {"relational_databases": {"postgresql"}}
+STACK_SKILL_BONUS = 3
+MAX_EXPLANATION_EVIDENCE = 3
 
 
 def _skill_key(value: str) -> str:
@@ -30,10 +32,11 @@ def _skill_key(value: str) -> str:
         return "python"
     normalized = normalized.replace("http(s)", "http")
     aliases = {
-        "rest api": "rest",
-        "restful api": "rest",
-        "restful apis": "rest",
-        "http/rest": "rest",
+        "http/rest": "rest_api_development",
+        "rest": "rest_api_development",
+        "rest api": "rest_api_development",
+        "restful api": "rest_api_development",
+        "restful apis": "rest_api_development",
         "relational database experience": "relational_databases",
         "relational databases": "relational_databases",
         "rdbms": "relational_databases",
@@ -44,6 +47,8 @@ def _skill_key(value: str) -> str:
         "third-party api integration": "external_api_integration",
         "third party api integration": "external_api_integration",
         "интеграция с внешними api": "external_api_integration",
+        "llm api integration": "llm_integration",
+        "llm integration": "llm_integration",
     }
     normalized = aliases.get(normalized, normalized)
     return SKILL_ALIASES.get(normalized, normalized)
@@ -87,6 +92,11 @@ def _proportional_score(matches: list[str], available: list[str], weight: int) -
     if not available:
         return 0
     return round(weight * len(matches) / len(available))
+
+
+def _stack_bonus(matches: list[str]) -> int:
+    """Award relevance for each matched stack skill without penalising extra stack items."""
+    return min(STACK_SKILLS_WEIGHT, len(matches) * STACK_SKILL_BONUS)
 
 
 def _title_score(title: str, desired_titles: list[str]) -> int:
@@ -154,61 +164,18 @@ def recommendation_for(score: int) -> str:
 def calculate_match(job: JobPosting, candidate: CandidateProfile) -> MatchResult:
     required_skills = job.required_skills
     candidate_by_key, evidence_by_key = _candidate_facts(candidate)
-    legacy_keys = {_skill_key(item) for item in candidate.core_skills + candidate.secondary_skills}
-    rich_only_skills = [
-        item.canonical_name or item.name
-        for item in candidate.skills
-        if _skill_key(item.canonical_name or item.name) not in legacy_keys
-    ]
-    core_values = candidate.core_skills + rich_only_skills + [
-        item.name for item in candidate.capabilities
-    ]
-    matched_core = [
-        match
-        for skill in required_skills
-        if (match := _candidate_match(skill, {_skill_key(item): item for item in core_values}))
-    ]
-    matched_secondary = [
-        match
-        for skill in required_skills
-        if (
-            match := _candidate_match(
-                skill, {_skill_key(item): item for item in candidate.secondary_skills}
-            )
-        )
-    ]
-    all_candidate_skills = list(candidate_by_key.values())
-    missing_skills = [
+    matched_required = _matching_items(required_skills, list(candidate_by_key.values()))
+    missing_required = [
         skill for skill in required_skills if _candidate_match(skill, candidate_by_key) is None
     ]
-    breakdown = ScoreBreakdown(
-        title=_title_score(job.title, candidate.desired_titles),
-        core_skills=_proportional_score(matched_core, core_values, CORE_SKILLS_WEIGHT),
-        secondary_skills=_proportional_score(
-            matched_secondary,
-            candidate.secondary_skills,
-            SECONDARY_SKILLS_WEIGHT,
-        ),
-        stack_skills=_proportional_score(
-            _matching_items(job.stack_skills or [], all_candidate_skills),
-            job.stack_skills or [],
-            STACK_SKILLS_WEIGHT,
-        ),
-        location=_location_score(job, candidate),
-    )
-    score = sum(breakdown.model_dump().values())
-    explanations = [
-        RequirementExplanation(
-            requirement=skill,
-            status="matched"
-            if (matched := _candidate_match(skill, candidate_by_key))
-            else "missing",
-            matched_by=matched,
-            evidence_ids=evidence_by_key.get(_skill_key(matched), []) if matched else [],
-        )
-        for skill in required_skills
+    preferred_skills = job.preferred_skills or []
+    matched_preferred = _matching_items(preferred_skills, list(candidate_by_key.values()))
+    missing_preferred = [
+        skill for skill in preferred_skills if _candidate_match(skill, candidate_by_key) is None
     ]
+    all_candidate_skills = list(candidate_by_key.values())
     experience_requirements: list[RequirementExplanation] = []
+    experience_matched = False
     if job.required_experience_min_years is not None:
         requirement = f"{job.required_experience_min_years}+ years" + (
             f" {job.required_experience_area}"
@@ -224,6 +191,7 @@ def calculate_match(job: JobPosting, candidate: CandidateProfile) -> MatchResult
         if months is not None and months >= required_months:
             status = "matched"
             context = f"confirmed {months // 12} years"
+            experience_matched = True
         elif months is None and relevant:
             status = "unverified_duration"
             context = "relevant experience exists but duration is not supplied"
@@ -233,14 +201,52 @@ def calculate_match(job: JobPosting, candidate: CandidateProfile) -> MatchResult
         experience_requirements.append(
             RequirementExplanation(requirement=requirement, status=status, matched_by=context)
         )
+    required_total = len(required_skills) + int(job.required_experience_min_years is not None)
+    breakdown = ScoreBreakdown(
+        title=_title_score(job.title, candidate.desired_titles),
+        required_requirements=round(
+            REQUIRED_REQUIREMENTS_WEIGHT * (len(matched_required) + int(experience_matched))
+            / required_total
+        ) if required_total else 0,
+        preferred_requirements=_proportional_score(
+            matched_preferred, preferred_skills, PREFERRED_REQUIREMENTS_WEIGHT
+        ),
+        stack_skills=_stack_bonus(_matching_items(job.stack_skills or [], all_candidate_skills)),
+        location=_location_score(job, candidate),
+    )
+    score = sum(breakdown.model_dump().values())
+    required_explanations = [
+        RequirementExplanation(
+            requirement=skill,
+            status="matched"
+            if (matched := _candidate_match(skill, candidate_by_key))
+            else "missing",
+            matched_by=matched,
+            evidence_ids=(evidence_by_key.get(_skill_key(matched), [])[:MAX_EXPLANATION_EVIDENCE]
+                if matched else []),
+        )
+        for skill in required_skills
+    ]
+    preferred_explanations = [
+        RequirementExplanation(
+            requirement=skill,
+            status="matched" if (matched := _candidate_match(skill, candidate_by_key)) else "missing",
+            matched_by=matched,
+            evidence_ids=(evidence_by_key.get(_skill_key(matched), [])[:MAX_EXPLANATION_EVIDENCE]
+                if matched else []),
+        )
+        for skill in preferred_skills
+    ]
     return MatchResult(
         score=score,
         recommendation=recommendation_for(score),
         breakdown=breakdown,
-        matched_core_skills=matched_core,
-        matched_secondary_skills=matched_secondary,
+        matched_required_requirements=matched_required,
+        matched_preferred_requirements=matched_preferred,
         matched_stack_skills=_matching_items(job.stack_skills or [], all_candidate_skills),
-        missing_skills=missing_skills,
-        requirement_explanations=explanations,
+        missing_required_requirements=missing_required,
+        missing_preferred_requirements=missing_preferred,
+        required_requirement_explanations=required_explanations,
+        preferred_requirement_explanations=preferred_explanations,
         experience_requirements=experience_requirements,
     )

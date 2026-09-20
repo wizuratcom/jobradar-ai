@@ -36,8 +36,7 @@ from app.modules.jobs.repository import JobRepository
 from app.modules.jobs.schemas import JobRead
 from app.modules.matches.models import JobMatch
 from app.modules.matches.repository import JobMatchRepository
-from app.modules.matches.schemas import JobMatchRead
-from app.modules.matching.schemas import MatchResult
+from app.modules.matches.service import to_match_read, to_match_result
 from app.modules.matching.service import calculate_match
 
 
@@ -143,7 +142,7 @@ class ImportService:
         return {
             "job": JobRead.model_validate(posting).model_dump(mode="json"),
             "source": source_data,
-            "match": JobMatchRead.model_validate(match).model_dump(mode="json"),
+            "match": to_match_read(match).model_dump(mode="json"),
             "assessment": assessment.model_dump(mode="json") if assessment else None,
             "warnings": warnings,
         }
@@ -171,7 +170,7 @@ class ImportService:
         config = grade_config(grade, self.settings)
         if not self.settings.llm_enabled or self.settings.llm_provider == "disabled":
             raise LLMProviderError("AI assessment is disabled.")
-        match = MatchResult.model_validate(match_record, from_attributes=True)
+        match = to_match_result(match_record)
         projects = await CandidateProjectRepository(self.session).list_for_user(user_id)
         evidence = await CandidateEvidenceRepository(self.session).list_for_user(user_id)
         candidate_context = CandidateContextBuilder(self.settings).build(
