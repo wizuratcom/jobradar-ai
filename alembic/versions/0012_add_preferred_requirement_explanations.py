@@ -6,9 +6,6 @@ Revises: 0011_add_rich_candidate_profile
 
 from collections.abc import Sequence
 
-import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
-
 from alembic import op
 
 revision: str = "0012_preferred_requirement_expl"
@@ -18,14 +15,11 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "job_matches",
-        sa.Column(
-            "preferred_requirement_explanations",
-            postgresql.JSONB(),
-            nullable=False,
-            server_default=sa.text("'[]'"),
-        ),
+    # IF NOT EXISTS also recovers a local development database where the
+    # predecessor revision ID overflowed alembic_version after the DDL landed.
+    op.execute(
+        "ALTER TABLE job_matches ADD COLUMN IF NOT EXISTS "
+        "preferred_requirement_explanations JSONB NOT NULL DEFAULT '[]'"
     )
 
 
